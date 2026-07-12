@@ -24,7 +24,13 @@ export function getStoredUser() {
   }
 }
 
-const API_BASE = import.meta.env.VITE_API_URL || '';
+const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+
+function apiUrl(path) {
+  if (API_BASE) return `${API_BASE}${path}`;
+  if (import.meta.env.DEV) return path;
+  return path;
+}
 
 async function request(path, options = {}) {
   const token = getToken();
@@ -38,8 +44,14 @@ async function request(path, options = {}) {
     headers['Content-Type'] = 'application/json';
   }
 
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  const res = await fetch(apiUrl(path), { ...options, headers });
   const data = await res.json().catch(() => ({}));
+
+  if (res.status === 405) {
+    throw new Error(
+      'Error 405: no hay backend conectado. Despliega el backend en Railway/Render y configura VITE_API_URL en Vercel, luego haz Redeploy.'
+    );
+  }
 
   if (res.status === 401 && !path.includes('/auth/login')) {
     clearAuth();
@@ -119,6 +131,7 @@ export function formatDate(dateStr) {
 export function getImageUrl(url) {
   if (!url) return null;
   if (url.startsWith('http')) return url;
-  const base = import.meta.env.VITE_API_URL || '';
-  return `${base}${url}`;
+  if (API_BASE) return `${API_BASE}${url}`;
+  if (import.meta.env.DEV) return url;
+  return url;
 }

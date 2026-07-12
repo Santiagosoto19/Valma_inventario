@@ -235,11 +235,20 @@ Frontend (Vercel) → Backend API (Railway/Render) → Neon (datos)
 3. **Build Command:** `npm run build` (o déjalo en blanco, `vercel.json` lo define)
 4. **Output Directory:** `dist` ← **NO uses `public`**
 5. **Install Command:** `npm install`
-6. Variables de entorno:
+6. Variables de entorno en Vercel (Settings → Environment Variables):
    ```env
    VITE_API_URL=https://tu-backend.railway.app
+   BACKEND_URL=https://tu-backend.railway.app
    VITE_SOCKET_URL=https://tu-backend.railway.app
    VITE_LOGO_URL=/logo.png
+   ```
+   > `BACKEND_URL` y `VITE_API_URL` deben apuntar a tu **backend desplegado** (Railway, Render, etc.). Sin esto el login devuelve **Error 405**.
+
+7. **Redeploy** después de agregar las variables (Vercel las usa en el build).
+
+**En el backend** (Railway/Render), configura también:
+   ```env
+   CORS_ORIGIN=https://tu-app.vercel.app
    ```
 
 **Opción B — Raíz del repo**
