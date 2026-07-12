@@ -1,0 +1,25 @@
+{
+  "name": "valma-inventario-backend",
+  "version": "1.0.0",
+  "description": "Backend API para gestión de inventario y contabilidad comercial",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "db:init": "node scripts/init-db.js",
+    "db:seed": "node scripts/init-db.js --seed",
+    "db:migrate": "node scripts/migrate-db.js",
+    "db:setup": "node scripts/migrate-db.js --seed"
+  },
+  "dependencies": {
+    "cloudinary": "^2.10.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^1.4.5-lts.1",
+    "pg": "^8.13.1",
+    "socket.io": "^4.8.1"
+  }
+}
