@@ -228,15 +228,25 @@ Frontend (Vercel) → Backend API (Railway/Render) → Neon (datos)
 
 ### Frontend en Vercel
 
+**Opción A — Root Directory = `frontend` (recomendada)**
+
 1. Importa el repo en Vercel
-2. **Root Directory:** `frontend`
-3. **Build Command:** `npm run build`
-4. **Output Directory:** `dist`
-5. Variables de entorno:
+2. **Settings → General → Root Directory:** `frontend`
+3. **Build Command:** `npm run build` (o déjalo en blanco, `vercel.json` lo define)
+4. **Output Directory:** `dist` ← **NO uses `public`**
+5. **Install Command:** `npm install`
+6. Variables de entorno:
    ```env
    VITE_API_URL=https://tu-backend.railway.app
    VITE_SOCKET_URL=https://tu-backend.railway.app
+   VITE_LOGO_URL=/logo.png
    ```
+
+**Opción B — Raíz del repo**
+
+Si despliegas desde la raíz (sin Root Directory), usa el `vercel.json` de la raíz que ya apunta a `frontend/dist`.
+
+> **Error "No output directory called public"?** En Vercel Dashboard → Settings → Build & Development → cambia **Output Directory** de `public` a `dist`.
 
 ### Backend (Railway / Render)
 
