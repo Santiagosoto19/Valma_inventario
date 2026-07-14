@@ -6,7 +6,14 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const frontendDir = path.resolve(__dirname, '..');
 const rootDir = path.resolve(frontendDir, '..');
 
-const backendUrl = (process.env.VITE_API_URL || process.env.BACKEND_URL || '').replace(/\/$/, '');
+function normalizeEnvUrl(value) {
+  return String(value ?? '')
+    .replace(/\s/g, '')
+    .replace(/\/api\/?$/i, '')
+    .replace(/\/+$/, '');
+}
+
+const backendUrl = normalizeEnvUrl(process.env.VITE_API_URL || process.env.BACKEND_URL);
 
 const apiRewrites = backendUrl
   ? [

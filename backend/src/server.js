@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import http from 'http';
 
 import { initSocket } from './config/socket.js';
+import { createCorsOptions } from './config/cors.js';
 import { uploadDir } from './middleware/upload.js';
 import { authenticate } from './middleware/auth.js';
 import authRoutes from './routes/authRoutes.js';
@@ -20,7 +21,7 @@ const PORT = process.env.PORT || 3001;
 
 initSocket(server);
 
-app.use(cors({ origin: process.env.CORS_ORIGIN || 'http://localhost:5173' }));
+app.use(cors(createCorsOptions()));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

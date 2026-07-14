@@ -242,7 +242,7 @@ Frontend (Vercel) → Backend API (Railway/Render) → Neon (datos)
    VITE_SOCKET_URL=https://tu-backend.railway.app
    VITE_LOGO_URL=/logo.png
    ```
-   > `BACKEND_URL` y `VITE_API_URL` deben apuntar a tu **backend desplegado** (Railway, Render, etc.). Sin esto el login devuelve **Error 405**.
+   > Sin espacios al final de las URLs. Solo la URL base, **sin** `/api` al final.
 
 7. **Redeploy** después de agregar las variables (Vercel las usa en el build).
 
@@ -259,16 +259,30 @@ Si despliegas desde la raíz (sin Root Directory), usa el `vercel.json` de la ra
 
 ### Backend (Railway / Render)
 
-Variables de entorno necesarias:
+**Railway — pasos:**
+
+1. [railway.app](https://railway.app) → **New Project** → **Deploy from GitHub** → repo `Valma_inventario`
+2. **Settings → Root Directory:** `backend`
+3. **Settings → Networking → Generate Domain** (copia la URL, ej. `https://valma-inventario-production.up.railway.app`)
+4. **Variables** (pega las de tu `backend/.env`):
+
 ```env
 DATABASE_URL=postgresql://...@ep-xxx.neon.tech/neondb?sslmode=require
 DATABASE_SSL=true
 CLOUDINARY_CLOUD_NAME=tu_cloud_name
 CLOUDINARY_API_KEY=tu_api_key
 CLOUDINARY_API_SECRET=tu_api_secret
-CORS_ORIGIN=https://tu-app.vercel.app
-PORT=3001
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=tu_contraseña
+JWT_SECRET=clave_larga_y_segura
+CORS_ORIGIN=http://localhost:5173,https://tu-app.vercel.app
 ```
+
+5. Verifica en el navegador: `https://TU-URL.railway.app/api/health` → debe responder `{"status":"ok",...}`
+
+> **Importante:** Si ves el dibujo de Railway ("Home of the Railway API") o un 404 en `/api/health`, el backend **no está desplegado**. Revisa que Root Directory sea `backend` y que el deploy haya terminado sin errores.
+
+6. Usa esa misma URL en Vercel como `VITE_API_URL` y `VITE_SOCKET_URL`.
 
 ## Licencia
 

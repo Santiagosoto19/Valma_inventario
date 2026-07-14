@@ -1,3 +1,5 @@
+import { getApiBase, joinUrl } from '../config/env.js';
+
 const TOKEN_KEY = 'valma_token';
 const USER_KEY = 'valma_user';
 
@@ -24,10 +26,10 @@ export function getStoredUser() {
   }
 }
 
-const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+const API_BASE = getApiBase();
 
 function apiUrl(path) {
-  if (API_BASE) return `${API_BASE}${path}`;
+  if (API_BASE) return joinUrl(API_BASE, path);
   if (import.meta.env.DEV) return path;
   return path;
 }
@@ -44,7 +46,20 @@ async function request(path, options = {}) {
     headers['Content-Type'] = 'application/json';
   }
 
-  const res = await fetch(apiUrl(path), { ...options, headers });
+  let res;
+  try {
+    res = await fetch(apiUrl(path), { ...options, headers });
+  } catch (err) {
+    if (err instanceof TypeError) {
+      throw new Error(
+        'URL de API inválida. En Vercel corrige VITE_API_URL: debe ser https://tu-servicio.railway.app sin espacios ni /api al final.'
+      );
+    }
+    const target = API_BASE || 'el servidor';
+    throw new Error(
+      `No se pudo conectar a ${target}. Verifica que el backend esté corriendo y que VITE_API_URL sea correcta.`
+    );
+  }
   const data = await res.json().catch(() => ({}));
 
   if (res.status === 405) {
@@ -131,7 +146,7 @@ export function formatDate(dateStr) {
 export function getImageUrl(url) {
   if (!url) return null;
   if (url.startsWith('http')) return url;
-  if (API_BASE) return `${API_BASE}${url}`;
+  if (API_BASE) return joinUrl(API_BASE, url);
   if (import.meta.env.DEV) return url;
   return url;
 }
