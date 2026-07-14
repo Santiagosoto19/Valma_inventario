@@ -18,7 +18,7 @@ const fileFilter = (_req, file, cb) => {
 };
 
 function createStorage() {
-  if (isCloudinaryEnabled()) {
+  if (isCloudinaryEnabled() || process.env.VERCEL) {
     return multer.memoryStorage();
   }
 

@@ -1,14 +1,16 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { io } from 'socket.io-client';
 
 import { getSocketBase } from '../config/env.js';
+import { api } from '../services/api.js';
 
 const NotificationContext = createContext(null);
 
-const SOCKET_URL = getSocketBase();
+const POLL_INTERVAL_MS = 60_000;
 
 export function NotificationProvider({ children }) {
   const [notifications, setNotifications] = useState([]);
+  const seenAlertsRef = useRef(new Set());
 
   const addNotification = useCallback((notification) => {
     const id = crypto.randomUUID();
@@ -27,18 +29,49 @@ export function NotificationProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+    const useExternalSocket = Boolean(import.meta.env.VITE_SOCKET_URL?.trim());
 
-    socket.on('stock:alert', (data) => {
-      addNotification({
-        type: 'warning',
-        title: 'Stock crítico',
-        message: data.message,
-        product: data.product,
+    if (import.meta.env.DEV || useExternalSocket) {
+      const socket = io(
+        useExternalSocket ? getSocketBase() : 'http://localhost:3001',
+        { transports: ['websocket', 'polling'] }
+      );
+
+      socket.on('stock:alert', (data) => {
+        addNotification({
+          type: 'warning',
+          title: 'Stock crítico',
+          message: data.message,
+          product: data.product,
+        });
       });
-    });
 
-    return () => socket.disconnect();
+      return () => socket.disconnect();
+    }
+
+    async function checkLowStock() {
+      try {
+        const products = await api.products.lowStock();
+        products.forEach((product) => {
+          const key = `${product.id}-${product.stock}`;
+          if (seenAlertsRef.current.has(key)) return;
+          seenAlertsRef.current.add(key);
+
+          addNotification({
+            type: 'warning',
+            title: 'Stock crítico',
+            message: `Stock crítico: ${product.name} (${product.stock} unidades restantes)`,
+            product,
+          });
+        });
+      } catch {
+        // API no disponible aún
+      }
+    }
+
+    checkLowStock();
+    const interval = setInterval(checkLowStock, POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
   }, [addNotification]);
 
   return (

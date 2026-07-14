@@ -216,73 +216,20 @@ CLOUDINARY_API_KEY=tu_api_key
 CLOUDINARY_API_SECRET=tu_api_secret
 ```
 
-### Despliegue recomendado
+### Despliegue en Vercel
+
+Todo el proyecto (frontend + API) se despliega en **Vercel**. Guía completa: **[DEPLOY_VERCEL.md](./DEPLOY_VERCEL.md)**
 
 ```
-Frontend (Vercel) → Backend API (Railway/Render) → Neon (datos)
-                              ↓
-                       Cloudinary (imágenes)
+Vercel (frontend + API serverless) → Neon (datos) + Cloudinary (imágenes)
 ```
 
-> El backend usa **Socket.io**; conviene hostearlo en Railway, Render o Fly.io.
+1. Root Directory: **vacío** (raíz del repo)
+2. Variables en Vercel: `DATABASE_URL`, `CLOUDINARY_*`, `ADMIN_*`, `JWT_SECRET`, `CORS_ORIGIN`
+3. **No** definas `VITE_API_URL` en producción
+4. Ejecuta `npm run db:migrate` una vez desde tu PC
 
-### Frontend en Vercel
-
-**Opción A — Root Directory = `frontend` (recomendada)**
-
-1. Importa el repo en Vercel
-2. **Settings → General → Root Directory:** `frontend`
-3. **Build Command:** `npm run build` (o déjalo en blanco, `vercel.json` lo define)
-4. **Output Directory:** `dist` ← **NO uses `public`**
-5. **Install Command:** `npm install`
-6. Variables de entorno en Vercel (Settings → Environment Variables):
-   ```env
-   VITE_API_URL=https://tu-backend.railway.app
-   BACKEND_URL=https://tu-backend.railway.app
-   VITE_SOCKET_URL=https://tu-backend.railway.app
-   VITE_LOGO_URL=/logo.png
-   ```
-   > Sin espacios al final de las URLs. Solo la URL base, **sin** `/api` al final.
-
-7. **Redeploy** después de agregar las variables (Vercel las usa en el build).
-
-**En el backend** (Railway/Render), configura también:
-   ```env
-   CORS_ORIGIN=https://tu-app.vercel.app
-   ```
-
-**Opción B — Raíz del repo**
-
-Si despliegas desde la raíz (sin Root Directory), usa el `vercel.json` de la raíz que ya apunta a `frontend/dist`.
-
-> **Error "No output directory called public"?** En Vercel Dashboard → Settings → Build & Development → cambia **Output Directory** de `public` a `dist`.
-
-### Backend (Railway / Render)
-
-**Railway — pasos:**
-
-1. [railway.app](https://railway.app) → **New Project** → **Deploy from GitHub** → repo `Valma_inventario`
-2. **Settings → Root Directory:** `backend`
-3. **Settings → Networking → Generate Domain** (copia la URL, ej. `https://valma-inventario-production.up.railway.app`)
-4. **Variables** (pega las de tu `backend/.env`):
-
-```env
-DATABASE_URL=postgresql://...@ep-xxx.neon.tech/neondb?sslmode=require
-DATABASE_SSL=true
-CLOUDINARY_CLOUD_NAME=tu_cloud_name
-CLOUDINARY_API_KEY=tu_api_key
-CLOUDINARY_API_SECRET=tu_api_secret
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=tu_contraseña
-JWT_SECRET=clave_larga_y_segura
-CORS_ORIGIN=http://localhost:5173,https://tu-app.vercel.app
-```
-
-5. Verifica en el navegador: `https://TU-URL.railway.app/api/health` → debe responder `{"status":"ok",...}`
-
-> **Importante:** Si ves el dibujo de Railway ("Home of the Railway API") o un 404 en `/api/health`, el backend **no está desplegado**. Revisa que Root Directory sea `backend` y que el deploy haya terminado sin errores.
-
-6. Usa esa misma URL en Vercel como `VITE_API_URL` y `VITE_SOCKET_URL`.
+> **Error "No output directory called public"?** En Vercel → Settings → Build → cambia **Output Directory** a `frontend/dist`.
 
 ## Licencia
 

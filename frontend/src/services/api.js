@@ -52,7 +52,7 @@ async function request(path, options = {}) {
   } catch (err) {
     if (err instanceof TypeError) {
       throw new Error(
-        'URL de API inválida. En Vercel corrige VITE_API_URL: debe ser https://tu-servicio.railway.app sin espacios ni /api al final.'
+        'URL de API inválida. Revisa VITE_API_URL (sin espacios ni /api al final).'
       );
     }
     const target = API_BASE || 'el servidor';
@@ -64,7 +64,7 @@ async function request(path, options = {}) {
 
   if (res.status === 405) {
     throw new Error(
-      'Error 405: no hay backend conectado. Despliega el backend en Railway/Render y configura VITE_API_URL en Vercel, luego haz Redeploy.'
+      'Error 405: la API no responde. Verifica el despliegue en Vercel (Root Directory = raíz del repo).'
     );
   }
 

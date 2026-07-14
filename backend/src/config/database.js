@@ -26,6 +26,7 @@ function resolveSsl() {
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: resolveSsl(),
+  max: process.env.VERCEL ? 1 : 10,
 });
 
 pool.on('error', (err) => {
