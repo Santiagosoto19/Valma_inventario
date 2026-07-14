@@ -62,6 +62,7 @@ Push al repo → Vercel despliega automáticamente.
 
 | Error | Solución |
 |-------|----------|
+| No se pudo conectar al servidor | **Local:** `npm run start` desde la raíz. **Vercel:** Root Directory vacío + variables configuradas + redeploy |
 | 405 en login | Root Directory = raíz del repo, no `frontend` |
 | 500 en API | Revisa `DATABASE_URL` en Vercel |
 | Imágenes no suben | Configura `CLOUDINARY_*` |

@@ -40,9 +40,10 @@ async function request(path, options = {}) {
   try {
     res = await fetch(path, { ...options, headers });
   } catch {
-    throw new Error(
-      'No se pudo conectar al servidor. Verifica que el backend esté corriendo.'
-    );
+    const hint = import.meta.env.DEV
+      ? 'En local ejecuta: npm run start (desde la raíz del proyecto).'
+      : 'En Vercel: Root Directory vacío, variables DATABASE_URL/JWT_SECRET configuradas, y redeploy.';
+    throw new Error(`No se pudo conectar al servidor. ${hint}`);
   }
 
   const data = await res.json().catch(() => ({}));
