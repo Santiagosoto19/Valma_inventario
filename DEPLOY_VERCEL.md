@@ -34,7 +34,7 @@ CORS_ORIGIN=https://tu-app.vercel.app
 VITE_LOGO_URL=/logo.png
 ```
 
-> **No definas** `VITE_API_URL` — el frontend usa `/api` en el mismo dominio.
+> El frontend llama a `/api` en el mismo dominio de Vercel. No necesitas variables de URL del backend.
 
 ## 3. Base de datos (una vez)
 

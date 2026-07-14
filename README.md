@@ -225,9 +225,8 @@ Vercel (frontend + API serverless) → Neon (datos) + Cloudinary (imágenes)
 ```
 
 1. Root Directory: **vacío** (raíz del repo)
-2. Variables en Vercel: `DATABASE_URL`, `CLOUDINARY_*`, `ADMIN_*`, `JWT_SECRET`, `CORS_ORIGIN`
-3. **No** definas `VITE_API_URL` en producción
-4. Ejecuta `npm run db:migrate` una vez desde tu PC
+2. Variables en Vercel: `DATABASE_URL`, `CLOUDINARY_*`, `ADMIN_*`, `JWT_SECRET`, `CORS_ORIGIN`, `VITE_LOGO_URL`
+3. Ejecuta `npm run db:migrate` una vez desde tu PC
 
 > **Error "No output directory called public"?** En Vercel → Settings → Build → cambia **Output Directory** a `frontend/dist`.
 

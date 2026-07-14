@@ -1,5 +1,3 @@
-import { getApiBase, joinUrl } from '../config/env.js';
-
 const TOKEN_KEY = 'valma_token';
 const USER_KEY = 'valma_user';
 
@@ -26,14 +24,6 @@ export function getStoredUser() {
   }
 }
 
-const API_BASE = getApiBase();
-
-function apiUrl(path) {
-  if (API_BASE) return joinUrl(API_BASE, path);
-  if (import.meta.env.DEV) return path;
-  return path;
-}
-
 async function request(path, options = {}) {
   const token = getToken();
   const headers = { ...options.headers };
@@ -48,18 +38,13 @@ async function request(path, options = {}) {
 
   let res;
   try {
-    res = await fetch(apiUrl(path), { ...options, headers });
-  } catch (err) {
-    if (err instanceof TypeError) {
-      throw new Error(
-        'URL de API inválida. Revisa VITE_API_URL (sin espacios ni /api al final).'
-      );
-    }
-    const target = API_BASE || 'el servidor';
+    res = await fetch(path, { ...options, headers });
+  } catch {
     throw new Error(
-      `No se pudo conectar a ${target}. Verifica que el backend esté corriendo y que VITE_API_URL sea correcta.`
+      'No se pudo conectar al servidor. Verifica que el backend esté corriendo.'
     );
   }
+
   const data = await res.json().catch(() => ({}));
 
   if (res.status === 405) {
@@ -145,8 +130,5 @@ export function formatDate(dateStr) {
 
 export function getImageUrl(url) {
   if (!url) return null;
-  if (url.startsWith('http')) return url;
-  if (API_BASE) return joinUrl(API_BASE, url);
-  if (import.meta.env.DEV) return url;
   return url;
 }

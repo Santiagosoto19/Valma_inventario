@@ -1,12 +1,12 @@
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { io } from 'socket.io-client';
 
-import { getSocketBase } from '../config/env.js';
 import { api } from '../services/api.js';
 
 const NotificationContext = createContext(null);
 
 const POLL_INTERVAL_MS = 60_000;
+const DEV_SOCKET_URL = 'http://localhost:3001';
 
 export function NotificationProvider({ children }) {
   const [notifications, setNotifications] = useState([]);
@@ -29,13 +29,8 @@ export function NotificationProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    const useExternalSocket = Boolean(import.meta.env.VITE_SOCKET_URL?.trim());
-
-    if (import.meta.env.DEV || useExternalSocket) {
-      const socket = io(
-        useExternalSocket ? getSocketBase() : 'http://localhost:3001',
-        { transports: ['websocket', 'polling'] }
-      );
+    if (import.meta.env.DEV) {
+      const socket = io(DEV_SOCKET_URL, { transports: ['websocket', 'polling'] });
 
       socket.on('stock:alert', (data) => {
         addNotification({
