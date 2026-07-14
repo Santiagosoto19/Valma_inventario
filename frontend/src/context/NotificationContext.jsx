@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { io } from 'socket.io-client';
 
+import { useAuth } from './AuthContext.jsx';
 import { api } from '../services/api.js';
 
 const NotificationContext = createContext(null);
@@ -9,6 +10,7 @@ const POLL_INTERVAL_MS = 60_000;
 const DEV_SOCKET_URL = 'http://localhost:3001';
 
 export function NotificationProvider({ children }) {
+  const { isAuthenticated, loading } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const seenAlertsRef = useRef(new Set());
 
@@ -29,6 +31,8 @@ export function NotificationProvider({ children }) {
   }, []);
 
   useEffect(() => {
+    if (loading || !isAuthenticated) return;
+
     if (import.meta.env.DEV) {
       const socket = io(DEV_SOCKET_URL, { transports: ['websocket', 'polling'] });
 
@@ -60,14 +64,14 @@ export function NotificationProvider({ children }) {
           });
         });
       } catch {
-        // API no disponible aún
+        // Sin sesión o API no disponible
       }
     }
 
     checkLowStock();
     const interval = setInterval(checkLowStock, POLL_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, [addNotification]);
+  }, [addNotification, isAuthenticated, loading]);
 
   return (
     <NotificationContext.Provider value={{ notifications, dismiss, addNotification }}>

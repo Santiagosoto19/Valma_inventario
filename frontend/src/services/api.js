@@ -54,9 +54,11 @@ async function request(path, options = {}) {
     );
   }
 
-  if (res.status === 401 && !path.includes('/auth/login')) {
+  if (res.status === 401 && !path.includes('/auth/login') && !path.includes('/auth/me')) {
     clearAuth();
-    window.location.href = '/login';
+    if (!window.location.pathname.startsWith('/login')) {
+      window.location.href = '/login';
+    }
     throw new Error(data.error || 'Sesión expirada');
   }
 
