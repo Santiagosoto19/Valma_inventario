@@ -218,17 +218,13 @@ CLOUDINARY_API_SECRET=tu_api_secret
 
 ### Despliegue en Vercel
 
-Todo el proyecto (frontend + API) se despliega en **Vercel**. Guía completa: **[DEPLOY_VERCEL.md](./DEPLOY_VERCEL.md)**
+Guía completa: **[DEPLOY_VERCEL.md](./DEPLOY_VERCEL.md)**
 
-```
-Vercel (frontend + API serverless) → Neon (datos) + Cloudinary (imágenes)
-```
+**Settings → Root Directory:** `frontend`
 
-1. Root Directory: **vacío** (raíz del repo)
-2. Variables en Vercel: `DATABASE_URL`, `CLOUDINARY_*`, `ADMIN_*`, `JWT_SECRET`, `CORS_ORIGIN`, `VITE_LOGO_URL`
-3. Ejecuta `npm run db:migrate` una vez desde tu PC
+Variables en Vercel: `DATABASE_URL`, `CLOUDINARY_*`, `ADMIN_*`, `JWT_SECRET`, `CORS_ORIGIN`, `VITE_LOGO_URL`
 
-> **Error "No output directory called public"?** En Vercel → Settings → Build → cambia **Output Directory** a `frontend/dist`.
+Ejecuta `npm run db:migrate` una vez desde tu PC antes del primer deploy.
 
 ## Licencia
 

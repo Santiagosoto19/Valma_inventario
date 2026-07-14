@@ -1,24 +1,19 @@
 # Despliegue en Vercel
 
-Frontend + API serverless en un solo proyecto.
+## Configuración en Vercel Dashboard
 
-```
-Usuario → Vercel
-            ├── frontend (React)
-            ├── /api/*  (Express serverless)
-            ├── Neon (PostgreSQL)
-            └── Cloudinary (imágenes)
-```
+**Settings → General → Root Directory:** `frontend`
 
-## 1. Configurar Vercel
+| Campo | Valor |
+|-------|-------|
+| Root Directory | `frontend` |
+| Build Command | (vacío — lo define `vercel.json`) |
+| Output Directory | `dist` |
+| Install Command | (vacío — lo define `vercel.json`) |
 
-1. [vercel.com](https://vercel.com) → **Add New Project** → repo `Valma_inventario`
-2. **Root Directory:** vacío (raíz del repo)
-3. Vercel usa el `vercel.json` de la raíz
+## Variables de entorno
 
-## 2. Variables de entorno
-
-**Settings → Environment Variables:**
+**Settings → Environment Variables** (marca Production, Preview y Development):
 
 ```env
 DATABASE_URL=postgresql://...@neon.tech/neondb?sslmode=require
@@ -34,36 +29,36 @@ CORS_ORIGIN=https://tu-app.vercel.app
 VITE_LOGO_URL=/logo.png
 ```
 
-> El frontend llama a `/api` en el mismo dominio de Vercel. No necesitas variables de URL del backend.
+> `CORS_ORIGIN` debe ser la URL exacta de tu app (ej. `https://valma-inventario.vercel.app`).
 
-## 3. Base de datos (una vez)
+## Base de datos (una vez desde tu PC)
 
 ```powershell
 cd C:\Users\Fiury\Valma_inventario
 npm run db:migrate
 ```
 
-## 4. Deploy y verificación
+## Verificar
 
-Push al repo → Vercel despliega automáticamente.
+1. Push al repo → Vercel redeploy automático
+2. Abre `https://tu-app.vercel.app/api/health` → `{"status":"ok",...}`
+3. Login en `https://tu-app.vercel.app`
 
-- `https://tu-app.vercel.app/api/health` → `{"status":"ok",...}`
-- Login en `https://tu-app.vercel.app`
+## Si sale "No se pudo conectar al servidor"
 
-## Notas
+| Revisa | Debe ser |
+|--------|----------|
+| Root Directory | `frontend` |
+| `/api/health` en el navegador | Responde JSON, no error 404 |
+| Variables en Vercel | `DATABASE_URL`, `JWT_SECRET`, `ADMIN_*` definidas |
+| Último deploy | Sin errores en Vercel → Deployments |
+| Redeploy | Después de cambiar variables o código |
 
-| Aspecto | Comportamiento en Vercel |
-|---------|--------------------------|
-| API | Serverless (puede tardar ~1-3 s en la primera petición) |
-| Alertas de stock | Polling cada 60 s (no Socket.io en producción) |
-| Imágenes | Obligatorio configurar Cloudinary |
+## Arquitectura
 
-## Errores comunes
-
-| Error | Solución |
-|-------|----------|
-| No se pudo conectar al servidor | **Local:** `npm run start` desde la raíz. **Vercel:** Root Directory vacío + variables configuradas + redeploy |
-| 405 en login | Root Directory = raíz del repo, no `frontend` |
-| 500 en API | Revisa `DATABASE_URL` en Vercel |
-| Imágenes no suben | Configura `CLOUDINARY_*` |
-| CORS | `CORS_ORIGIN` = URL exacta de tu app |
+```
+tu-app.vercel.app
+  ├── /           → React (dist/)
+  └── /api/*      → Express serverless (frontend/api/index.mjs)
+        └── Neon + Cloudinary
+```

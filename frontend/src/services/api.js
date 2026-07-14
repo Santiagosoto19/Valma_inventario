@@ -42,7 +42,7 @@ async function request(path, options = {}) {
   } catch {
     const hint = import.meta.env.DEV
       ? 'En local ejecuta: npm run start (desde la raíz del proyecto).'
-      : 'En Vercel: Root Directory vacío, variables DATABASE_URL/JWT_SECRET configuradas, y redeploy.';
+      : 'En Vercel: Root Directory = frontend, verifica /api/health y las variables DATABASE_URL/JWT_SECRET.';
     throw new Error(`No se pudo conectar al servidor. ${hint}`);
   }
 
