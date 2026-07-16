@@ -38,11 +38,11 @@ export default function ImagePreview({ src, alt = 'Vista previa', className = ''
   }
 
   return (
-    <div className={`overflow-hidden rounded-2xl border-2 border-pastel-lavender/30 shadow-soft ${className}`}>
+    <div className={`overflow-hidden rounded-2xl border-2 border-pastel-lavender/30 shadow-soft bg-gradient-to-br from-pastel-lavender/15 to-pink-50/80 flex items-center justify-center ${className}`}>
       <img
         src={src}
         alt={alt}
-        className="w-full h-full object-cover"
+        className="w-full h-full object-contain object-center"
         onError={() => setError(true)}
       />
     </div>

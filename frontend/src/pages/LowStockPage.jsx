@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Save, Package } from 'lucide-react';
-import { api, formatCurrency, getImageUrl } from '../services/api';
+import { AlertTriangle, CheckCircle2, Save } from 'lucide-react';
+import { api, formatCurrency } from '../services/api';
+import ProductImage from '../components/ui/ProductImage';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 
@@ -102,13 +103,12 @@ export default function LowStockPage() {
                   </span>
                 </div>
                 <div className="p-4 flex gap-4">
-                  <div className="w-16 h-16 rounded-2xl bg-pastel-lavender/20 overflow-hidden shrink-0 flex items-center justify-center">
-                    {product.image_url ? (
-                      <img src={getImageUrl(product.image_url)} alt={product.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <Package size={24} className="text-pastel-lavender-deep" />
-                    )}
-                  </div>
+                  <ProductImage
+                    src={product.image_url}
+                    alt={product.name}
+                    className="w-16 h-16 rounded-2xl shrink-0"
+                    iconSize={24}
+                  />
                   <div className="min-w-0">
                     <h3 className="font-bold text-slate-800 truncate">{product.name}</h3>
                     <p className="text-sm text-slate-500 mt-0.5 line-clamp-2">{product.description}</p>

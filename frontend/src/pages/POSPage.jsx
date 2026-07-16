@@ -3,7 +3,8 @@ import {
   Search, ShoppingCart, Package, Plus, Minus, X,
   Banknote, Smartphone, CreditCard, Tag, Percent,
 } from 'lucide-react';
-import { api, formatCurrency, getImageUrl } from '../services/api';
+import { api, formatCurrency } from '../services/api';
+import ProductImage from '../components/ui/ProductImage';
 import { useNotifications } from '../context/NotificationContext';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import InvoiceModal from '../components/sales/InvoiceModal';
@@ -33,12 +34,13 @@ function ProductGrid({ search, onSearchChange, filteredProducts, onAddToCart }) 
             onClick={() => onAddToCart(product)}
             className="card-pastel p-3 text-left active:scale-95 hover:shadow-soft hover:scale-[1.02] transition-all duration-200"
           >
-            <div className="h-20 sm:h-24 rounded-2xl bg-gradient-to-br from-pastel-lavender/20 to-pink-50 mb-2 overflow-hidden flex items-center justify-center">
-              {product.image_url ? (
-                <img src={getImageUrl(product.image_url)} alt={product.name} className="w-full h-full object-cover" />
-              ) : (
-                <Package size={28} className="text-pastel-lavender-deep" strokeWidth={1.5} />
-              )}
+            <div className="h-20 sm:h-24 rounded-2xl mb-2 overflow-hidden">
+              <ProductImage
+                src={product.image_url}
+                alt={product.name}
+                className="w-full h-full"
+                iconSize={28}
+              />
             </div>
             <p className="font-bold text-sm truncate text-slate-800">{product.name}</p>
             <p className="text-pink-600 font-extrabold text-sm mt-1">{formatCurrency(product.price)}</p>

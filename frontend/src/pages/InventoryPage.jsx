@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Plus, Pencil, Trash2, Package } from 'lucide-react';
-import { api, formatCurrency, getImageUrl } from '../services/api';
+import { api, formatCurrency } from '../services/api';
+import ProductImage from '../components/ui/ProductImage';
 import ProductForm from '../components/ProductForm';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
@@ -76,18 +77,12 @@ export default function InventoryPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {products.map((product) => (
             <Card key={product.id} className="overflow-hidden flex flex-col hover:shadow-soft transition-all duration-300 hover:scale-[1.01]">
-              <div className="h-44 bg-gradient-to-br from-pastel-lavender/20 to-pink-50 flex items-center justify-center overflow-hidden">
-                {product.image_url ? (
-                  <img
-                    src={getImageUrl(product.image_url)}
-                    alt={product.name}
-                    className="w-full h-full object-cover"
-                    onError={(e) => { e.target.style.display = 'none'; }}
-                  />
-                ) : (
-                  <Package size={48} className="text-pastel-lavender-deep" strokeWidth={1.5} />
-                )}
-              </div>
+              <ProductImage
+                src={product.image_url}
+                alt={product.name}
+                className="w-full h-44"
+                iconSize={48}
+              />
               <div className="p-5 flex-1 flex flex-col">
                 <h3 className="font-bold text-lg text-slate-800">{product.name}</h3>
                 <p className="text-sm text-slate-500 mt-1 line-clamp-2 flex-1">
