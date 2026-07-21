@@ -3,13 +3,14 @@ import {
   getDailyReport,
   getMonthlyReport,
 } from '../services/accountingService.js';
+import { httpStatusFromError } from '../utils/httpErrors.js';
 
 export async function dashboard(req, res) {
   try {
     const data = await getAccountingDashboard();
     res.json(data);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(httpStatusFromError(error)).json({ error: error.message });
   }
 }
 
@@ -18,7 +19,7 @@ export async function dailyReport(req, res) {
     const data = await getDailyReport(req.query.date);
     res.json(data);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(httpStatusFromError(error)).json({ error: error.message });
   }
 }
 
@@ -30,6 +31,6 @@ export async function monthlyReport(req, res) {
     const data = await getMonthlyReport(year, month);
     res.json(data);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(httpStatusFromError(error)).json({ error: error.message });
   }
 }

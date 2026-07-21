@@ -1,9 +1,9 @@
-import pool from '../config/database.js';
+import { queryWithTimeout } from '../config/database.js';
 
 export async function getDailyReport(date) {
   const targetDate = date || new Date().toISOString().split('T')[0];
 
-  const { rows } = await pool.query(
+  const { rows } = await queryWithTimeout(
     `SELECT
        payment_method,
        COUNT(*)::INTEGER AS transaction_count,
@@ -42,7 +42,7 @@ export async function getMonthlyReport(year, month) {
   const targetYear = year || now.getFullYear();
   const targetMonth = month || now.getMonth() + 1;
 
-  const { rows: monthlyTotals } = await pool.query(
+  const { rows: monthlyTotals } = await queryWithTimeout(
     `SELECT
        payment_method,
        COUNT(*)::INTEGER AS transaction_count,
@@ -54,7 +54,7 @@ export async function getMonthlyReport(year, month) {
     [targetYear, targetMonth]
   );
 
-  const { rows: dailyBreakdown } = await pool.query(
+  const { rows: dailyBreakdown } = await queryWithTimeout(
     `SELECT
        sale_date,
        payment_method,
@@ -115,7 +115,9 @@ export async function getMonthlyReport(year, month) {
 export async function getAccountingDashboard() {
   const today = new Date().toISOString().split('T')[0];
   const now = new Date();
-  const daily = await getDailyReport(today);
-  const monthly = await getMonthlyReport(now.getFullYear(), now.getMonth() + 1);
+  const [daily, monthly] = await Promise.all([
+    getDailyReport(today),
+    getMonthlyReport(now.getFullYear(), now.getMonth() + 1),
+  ]);
   return { daily, monthly };
 }

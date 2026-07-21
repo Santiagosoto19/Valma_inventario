@@ -1,7 +1,7 @@
-import pool from '../config/database.js';
+import { queryWithTimeout } from '../config/database.js';
 
 export async function getSetting(key) {
-  const { rows } = await pool.query(
+  const { rows } = await queryWithTimeout(
     'SELECT value FROM settings WHERE key = $1',
     [key]
   );
@@ -9,7 +9,7 @@ export async function getSetting(key) {
 }
 
 export async function updateSetting(key, value) {
-  const { rows } = await pool.query(
+  const { rows } = await queryWithTimeout(
     `INSERT INTO settings (key, value, updated_at)
      VALUES ($1, $2, NOW())
      ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()

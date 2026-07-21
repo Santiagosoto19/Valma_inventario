@@ -8,6 +8,7 @@ import {
   getLowStockProducts,
 } from '../services/productService.js';
 import { uploadProductImage, deleteProductImage } from '../services/storageService.js';
+import { httpStatusFromError } from '../utils/httpErrors.js';
 
 async function resolveImageUrl(req) {
   if (req.file) {
@@ -25,7 +26,7 @@ export async function listServiceProducts(req, res) {
     const products = await getServiceProducts(group);
     res.json(products);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(httpStatusFromError(error)).json({ error: error.message });
   }
 }
 
@@ -34,7 +35,7 @@ export async function listProducts(req, res) {
     const products = await getAllProducts();
     res.json(products);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(httpStatusFromError(error)).json({ error: error.message });
   }
 }
 
@@ -44,7 +45,7 @@ export async function getProduct(req, res) {
     if (!product) return res.status(404).json({ error: 'Producto no encontrado' });
     res.json(product);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(httpStatusFromError(error)).json({ error: error.message });
   }
 }
 
@@ -70,7 +71,7 @@ export async function addProduct(req, res) {
 
     res.status(201).json(product);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(httpStatusFromError(error)).json({ error: error.message });
   }
 }
 
@@ -99,7 +100,7 @@ export async function editProduct(req, res) {
     const product = await updateProduct(req.params.id, updates);
     res.json(product);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(httpStatusFromError(error)).json({ error: error.message });
   }
 }
 
@@ -115,7 +116,7 @@ export async function removeProduct(req, res) {
 
     res.json({ message: 'Producto eliminado correctamente' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(httpStatusFromError(error)).json({ error: error.message });
   }
 }
 
@@ -124,6 +125,6 @@ export async function listLowStock(req, res) {
     const result = await getLowStockProducts();
     res.json(result);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(httpStatusFromError(error)).json({ error: error.message });
   }
 }

@@ -1,4 +1,4 @@
-import pool from '../config/database.js';
+import { queryWithTimeout, connectWithTimeout } from '../config/database.js';
 import { checkStockAlertsForProducts } from './productService.js';
 
 function roundMoney(n) {
@@ -13,7 +13,7 @@ export async function createSale({ items, payment_method, global_discount = 0 })
     throw new Error('Método de pago inválido. Use cash o nequi');
   }
 
-  const client = await pool.connect();
+  const client = await connectWithTimeout(8_000);
 
   try {
     await client.query('BEGIN');
@@ -113,8 +113,9 @@ export async function createSale({ items, payment_method, global_discount = 0 })
     await client.query('COMMIT');
     await checkStockAlertsForProducts(updatedProducts);
 
-    const { rows: detailItems } = await pool.query(
-      'SELECT * FROM sale_items WHERE sale_id = $1', [sale.id]
+    const { rows: detailItems } = await queryWithTimeout(
+      'SELECT * FROM sale_items WHERE sale_id = $1',
+      [sale.id]
     );
 
     return { ...sale, items: detailItems };
@@ -127,10 +128,11 @@ export async function createSale({ items, payment_method, global_discount = 0 })
 }
 
 export async function getSaleById(id) {
-  const { rows: sales } = await pool.query('SELECT * FROM sales WHERE id = $1', [id]);
+  const { rows: sales } = await queryWithTimeout('SELECT * FROM sales WHERE id = $1', [id]);
   if (!sales.length) return null;
-  const { rows: items } = await pool.query(
-    'SELECT * FROM sale_items WHERE sale_id = $1', [id]
+  const { rows: items } = await queryWithTimeout(
+    'SELECT * FROM sale_items WHERE sale_id = $1',
+    [id]
   );
   return { ...sales[0], items };
 }
@@ -150,8 +152,8 @@ export async function getSales({ date, month, year } = {}) {
   }
 
   if (conditions.length) query += ' WHERE ' + conditions.join(' AND ');
-  query += ' ORDER BY created_at DESC';
+  query += ' ORDER BY created_at DESC LIMIT 500';
 
-  const { rows } = await pool.query(query, params);
+  const { rows } = await queryWithTimeout(query, params);
   return rows;
 }

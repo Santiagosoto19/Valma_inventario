@@ -1,16 +1,16 @@
-import pool from '../config/database.js';
+import { queryWithTimeout } from '../config/database.js';
 import { getStockThreshold } from './settingsService.js';
 import { emitStockAlert } from '../config/socket.js';
 
 export async function getAllProducts() {
-  const { rows } = await pool.query(
+  const { rows } = await queryWithTimeout(
     'SELECT * FROM products WHERE service_group IS NULL ORDER BY name ASC'
   );
   return rows;
 }
 
 export async function getServiceProducts(group) {
-  const { rows } = await pool.query(
+  const { rows } = await queryWithTimeout(
     'SELECT * FROM products WHERE service_group = $1 ORDER BY price ASC',
     [group]
   );
@@ -18,13 +18,13 @@ export async function getServiceProducts(group) {
 }
 
 export async function getProductById(id) {
-  const { rows } = await pool.query('SELECT * FROM products WHERE id = $1', [id]);
+  const { rows } = await queryWithTimeout('SELECT * FROM products WHERE id = $1', [id]);
   return rows[0] ?? null;
 }
 
 export async function createProduct(data) {
   const { name, description, image_url, stock, price } = data;
-  const { rows } = await pool.query(
+  const { rows } = await queryWithTimeout(
     `INSERT INTO products (name, description, image_url, stock, price)
      VALUES ($1, $2, $3, $4, $5) RETURNING *`,
     [name, description || '', image_url || null, stock ?? 0, price]
@@ -36,7 +36,7 @@ export async function createProduct(data) {
 
 export async function updateProduct(id, data) {
   const { name, description, image_url, stock, price } = data;
-  const { rows } = await pool.query(
+  const { rows } = await queryWithTimeout(
     `UPDATE products SET
        name = COALESCE($2, name),
        description = COALESCE($3, description),
@@ -53,13 +53,13 @@ export async function updateProduct(id, data) {
 }
 
 export async function deleteProduct(id) {
-  const { rowCount } = await pool.query('DELETE FROM products WHERE id = $1', [id]);
+  const { rowCount } = await queryWithTimeout('DELETE FROM products WHERE id = $1', [id]);
   return rowCount > 0;
 }
 
 export async function getLowStockProducts() {
   const threshold = await getStockThreshold();
-  const { rows } = await pool.query(
+  const { rows } = await queryWithTimeout(
     `SELECT * FROM products
      WHERE service_group IS NULL AND track_stock = true AND stock <= $1
      ORDER BY stock ASC, name ASC`,

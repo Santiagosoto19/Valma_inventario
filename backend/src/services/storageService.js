@@ -25,11 +25,12 @@ export async function uploadProductImage(file) {
   if (!file) return null;
 
   if (isCloudinaryEnabled()) {
-    return new Promise((resolve, reject) => {
+    const uploadPromise = new Promise((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
         {
           folder: 'valma/products',
           resource_type: 'image',
+          timeout: 15_000,
         },
         (error, result) => {
           if (error) reject(error);
@@ -38,6 +39,12 @@ export async function uploadProductImage(file) {
       );
       stream.end(file.buffer);
     });
+
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('TIMEOUT: subida de imagen tardó demasiado')), 15_000);
+    });
+
+    return Promise.race([uploadPromise, timeoutPromise]);
   }
 
   if (file.filename) {
