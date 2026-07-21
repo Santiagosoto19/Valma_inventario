@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Save } from 'lucide-react';
-import { api, formatCurrency } from '../services/api';
+import { api, formatCurrency, formatApiError } from '../services/api';
 import ProductImage from '../components/ui/ProductImage';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
+import { useNotifications } from '../context/NotificationContext';
 
 export default function LowStockPage() {
   const [data, setData] = useState({ threshold: 5, products: [] });
   const [threshold, setThreshold] = useState(5);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const { addNotification } = useNotifications();
 
   useEffect(() => { loadData(); }, []);
 
@@ -35,7 +37,11 @@ export default function LowStockPage() {
       await api.settings.update(threshold);
       await loadData();
     } catch (err) {
-      alert(err.message);
+      addNotification({
+        type: 'error',
+        title: 'No se pudo guardar',
+        message: formatApiError(err),
+      });
     } finally {
       setSaving(false);
     }

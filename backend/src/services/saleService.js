@@ -5,6 +5,19 @@ function roundMoney(n) {
   return Math.round(Number(n) * 100) / 100;
 }
 
+function mapSaleItems(saleId, saleItems) {
+  return saleItems.map((item) => ({
+    sale_id: saleId,
+    product_id: item.product_id,
+    product_name: item.product_name,
+    quantity: item.quantity,
+    unit_price: item.unit_price,
+    line_subtotal: item.line_subtotal,
+    discount_amount: item.discount_amount,
+    subtotal: item.subtotal,
+  }));
+}
+
 export async function createSale({ items, payment_method, global_discount = 0 }) {
   if (!items?.length) {
     throw new Error('La venta debe incluir al menos un producto');
@@ -13,9 +26,9 @@ export async function createSale({ items, payment_method, global_discount = 0 })
     throw new Error('Método de pago inválido. Use cash o nequi');
   }
 
-  const client = await connectWithTimeout(8_000);
-
+  let client;
   try {
+    client = await connectWithTimeout(10_000);
     await client.query('BEGIN');
 
     const productIds = items.map((i) => i.product_id);
@@ -28,11 +41,13 @@ export async function createSale({ items, payment_method, global_discount = 0 })
     let subtotal = 0;
     let discountItems = 0;
     const saleItems = [];
+    const stockUpdates = [];
 
     for (const item of items) {
       const product = productMap.get(item.product_id);
       if (!product) throw new Error(`Producto no encontrado: ${item.product_id}`);
       if (item.quantity <= 0) throw new Error(`Cantidad inválida para ${product.name}`);
+
       const tracksStock = product.track_stock !== false && !product.service_group;
       if (tracksStock && product.stock < item.quantity) {
         throw new Error(
@@ -61,6 +76,10 @@ export async function createSale({ items, payment_method, global_discount = 0 })
         subtotal: itemNet,
         tracksStock,
       });
+
+      if (tracksStock) {
+        stockUpdates.push({ id: product.id, quantity: item.quantity });
+      }
     }
 
     const afterItemDiscounts = roundMoney(subtotal - discountItems);
@@ -89,7 +108,6 @@ export async function createSale({ items, payment_method, global_discount = 0 })
       ]
     );
     const sale = saleRows[0];
-    const updatedProducts = [];
 
     for (const item of saleItems) {
       await client.query(
@@ -100,30 +118,39 @@ export async function createSale({ items, payment_method, global_discount = 0 })
           item.unit_price, item.line_subtotal, item.discount_amount, item.subtotal,
         ]
       );
+    }
 
-      const { rows: updated } = item.tracksStock
-        ? await client.query(
-            `UPDATE products SET stock = stock - $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
-            [item.quantity, item.product_id]
-          )
-        : await client.query('SELECT * FROM products WHERE id = $1', [item.product_id]);
-      if (updated[0]) updatedProducts.push(updated[0]);
+    for (const update of stockUpdates) {
+      await client.query(
+        'UPDATE products SET stock = stock - $1, updated_at = NOW() WHERE id = $2',
+        [update.quantity, update.id]
+      );
     }
 
     await client.query('COMMIT');
-    await checkStockAlertsForProducts(updatedProducts);
+    client.release();
+    client = null;
 
-    const { rows: detailItems } = await queryWithTimeout(
-      'SELECT * FROM sale_items WHERE sale_id = $1',
-      [sale.id]
-    );
+    if (!process.env.VERCEL && stockUpdates.length) {
+      const { rows: updatedProducts } = await queryWithTimeout(
+        'SELECT * FROM products WHERE id = ANY($1::uuid[])',
+        [stockUpdates.map((u) => u.id)]
+      );
+      checkStockAlertsForProducts(updatedProducts).catch(console.error);
+    }
 
-    return { ...sale, items: detailItems };
+    return { ...sale, items: mapSaleItems(sale.id, saleItems) };
   } catch (error) {
-    await client.query('ROLLBACK');
+    if (client) {
+      try {
+        await client.query('ROLLBACK');
+      } catch {
+        // transacción ya cerrada o sin BEGIN
+      }
+    }
     throw error;
   } finally {
-    client.release();
+    client?.release();
   }
 }
 

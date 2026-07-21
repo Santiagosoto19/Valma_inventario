@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import {
   Search, ShoppingCart, Package, Plus, Minus, X,
-  Banknote, Smartphone, CreditCard, Tag, Percent,
+  Banknote, Smartphone, CreditCard, Tag, Percent, Loader2,
 } from 'lucide-react';
-import { api, formatCurrency } from '../services/api';
+import { api, formatCurrency, formatApiError } from '../services/api';
 import ProductImage from '../components/ui/ProductImage';
 import { useNotifications } from '../context/NotificationContext';
 import { useIsMobile } from '../hooks/useMediaQuery';
@@ -179,8 +179,8 @@ function CartPanel({
           </div>
         </div>
 
-        <Button variant="success" size="xl" icon={CreditCard} className="w-full" onClick={onCompleteSale} disabled={processing || !cart.length}>
-          {processing ? 'Procesando...' : 'Terminar Venta'}
+        <Button variant="success" size="xl" icon={processing ? Loader2 : CreditCard} className={`w-full ${processing ? '[&_svg]:animate-spin' : ''}`} onClick={onCompleteSale} disabled={processing || !cart.length}>
+          {processing ? 'Procesando venta...' : 'Terminar Venta'}
         </Button>
       </div>
     </div>
@@ -229,7 +229,11 @@ export default function POSPage() {
       const existing = prev.find((i) => i.product.id === product.id);
       if (existing) {
         if (existing.quantity >= product.stock) {
-          alert(`Stock máximo: ${product.stock}`);
+          addNotification({
+            type: 'warning',
+            title: 'Stock insuficiente',
+            message: `Stock máximo disponible: ${product.stock} unidades`,
+          });
           return prev;
         }
         return prev.map((i) =>
@@ -248,7 +252,11 @@ export default function POSPage() {
         const newQty = item.quantity + delta;
         if (newQty <= 0) return null;
         if (newQty > item.product.stock) {
-          alert(`Stock máximo: ${item.product.stock}`);
+          addNotification({
+            type: 'warning',
+            title: 'Stock insuficiente',
+            message: `Stock máximo disponible: ${item.product.stock} unidades`,
+          });
           return item;
         }
         const maxDiscount = Number(item.product.price) * newQty;
@@ -274,7 +282,14 @@ export default function POSPage() {
   }
 
   async function completeSale() {
-    if (!cart.length) { alert('Agrega productos al carrito'); return; }
+    if (!cart.length) {
+      addNotification({
+        type: 'warning',
+        title: 'Carrito vacío',
+        message: 'Agrega productos al carrito antes de completar la venta',
+      });
+      return;
+    }
     try {
       setProcessing(true);
       const sale = await api.sales.create({
@@ -297,7 +312,11 @@ export default function POSPage() {
         message: `Factura ${sale.invoice_number} — ${formatCurrency(sale.total)}`,
       });
     } catch (err) {
-      alert(err.message);
+      addNotification({
+        type: 'error',
+        title: 'No se pudo completar la venta',
+        message: formatApiError(err),
+      });
     } finally {
       setProcessing(false);
     }

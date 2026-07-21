@@ -1,16 +1,18 @@
 import { useNotifications } from '../context/NotificationContext';
-import { X, AlertTriangle, CheckCircle2, Bell } from 'lucide-react';
+import { X, AlertTriangle, CheckCircle2, Bell, CircleX } from 'lucide-react';
 
 const icons = {
   warning: AlertTriangle,
   success: CheckCircle2,
   info: Bell,
+  error: CircleX,
 };
 
 const styles = {
   warning: 'border-l-pastel-amber-deep bg-amber-50/90 text-amber-900',
   success: 'border-l-pastel-mint-deep bg-emerald-50/90 text-emerald-900',
   info: 'border-l-pink-400 bg-pink-50/90 text-pink-900',
+  error: 'border-l-rose-500 bg-rose-50/90 text-rose-900',
 };
 
 export default function NotificationToast() {

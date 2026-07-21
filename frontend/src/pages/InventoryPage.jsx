@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Plus, Pencil, Trash2, Package } from 'lucide-react';
-import { api, formatCurrency } from '../services/api';
+import { api, formatCurrency, formatApiError } from '../services/api';
 import ProductImage from '../components/ui/ProductImage';
 import ProductForm from '../components/ProductForm';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
+import { useNotifications } from '../context/NotificationContext';
 
 export default function InventoryPage() {
   const [products, setProducts] = useState([]);
@@ -12,6 +13,7 @@ export default function InventoryPage() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [error, setError] = useState('');
+  const { addNotification } = useNotifications();
 
   useEffect(() => { loadProducts(); }, []);
 
@@ -32,7 +34,11 @@ export default function InventoryPage() {
       await api.products.delete(id);
       await loadProducts();
     } catch (err) {
-      alert(err.message);
+      addNotification({
+        type: 'error',
+        title: 'No se pudo eliminar',
+        message: formatApiError(err),
+      });
     }
   }
 

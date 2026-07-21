@@ -1,5 +1,5 @@
 import { createSale, getSaleById, getSales } from '../services/saleService.js';
-import { httpStatusFromError } from '../utils/httpErrors.js';
+import { httpStatusFromError, userFacingError } from '../utils/httpErrors.js';
 
 export async function completeSale(req, res) {
   try {
@@ -12,7 +12,7 @@ export async function completeSale(req, res) {
       error.message.includes('inválid')
       ? 400
       : httpStatusFromError(error);
-    res.status(status).json({ error: error.message });
+    res.status(status).json({ error: userFacingError(error) });
   }
 }
 
@@ -22,7 +22,7 @@ export async function getSale(req, res) {
     if (!sale) return res.status(404).json({ error: 'Venta no encontrada' });
     res.json(sale);
   } catch (error) {
-    res.status(httpStatusFromError(error)).json({ error: error.message });
+    res.status(httpStatusFromError(error)).json({ error: userFacingError(error) });
   }
 }
 
@@ -35,6 +35,6 @@ export async function listSales(req, res) {
     });
     res.json(sales);
   } catch (error) {
-    res.status(httpStatusFromError(error)).json({ error: error.message });
+    res.status(httpStatusFromError(error)).json({ error: userFacingError(error) });
   }
 }

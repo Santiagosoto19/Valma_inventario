@@ -1,3 +1,5 @@
+import { formatApiError } from '../utils/errors.js';
+
 const TOKEN_KEY = 'valma_token';
 const USER_KEY = 'valma_user';
 
@@ -24,7 +26,7 @@ export function getStoredUser() {
   }
 }
 
-async function request(path, options = {}) {
+async function request(path, options = {}, timeoutMs = 15_000) {
   const token = getToken();
   const headers = { ...options.headers };
 
@@ -36,21 +38,29 @@ async function request(path, options = {}) {
     headers['Content-Type'] = 'application/json';
   }
 
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
   let res;
   try {
-    res = await fetch(path, { ...options, headers });
-  } catch {
+    res = await fetch(path, { ...options, headers, signal: controller.signal });
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error('La operación tardó demasiado. Inténtalo de nuevo.');
+    }
     const hint = import.meta.env.DEV
-      ? 'En local ejecuta: npm run start (desde la raíz del proyecto).'
-      : 'En Vercel: Root Directory = frontend, verifica /api/health y las variables DATABASE_URL/JWT_SECRET.';
-    throw new Error(`No se pudo conectar al servidor. ${hint}`);
+      ? ' En local ejecuta: npm run start.'
+      : '';
+    throw new Error(`No se pudo conectar al servidor.${hint}`);
+  } finally {
+    clearTimeout(timer);
   }
 
   const data = await res.json().catch(() => ({}));
 
   if (res.status === 405) {
     throw new Error(
-      'Error 405: la API no responde. Verifica el despliegue en Vercel (Root Directory = raíz del repo).'
+      'Error 405: la API no responde. Verifica el despliegue en Vercel.'
     );
   }
 
@@ -69,6 +79,8 @@ async function request(path, options = {}) {
   return data;
 }
 
+export { formatApiError };
+
 export const api = {
   auth: {
     login: (username, password) =>
@@ -83,18 +95,19 @@ export const api = {
     services: (group) => request(`/api/products/services/${group}`),
     get: (id) => request(`/api/products/${id}`),
     create: (formData) =>
-      request('/api/products', { method: 'POST', body: formData, headers: {} }),
+      request('/api/products', { method: 'POST', body: formData, headers: {} }, 30_000),
     update: (id, formData) =>
-      request(`/api/products/${id}`, { method: 'PUT', body: formData, headers: {} }),
+      request(`/api/products/${id}`, { method: 'PUT', body: formData, headers: {} }, 30_000),
     delete: (id) => request(`/api/products/${id}`, { method: 'DELETE' }),
     lowStock: () => request('/api/products/low-stock'),
   },
   sales: {
     create: (body) =>
-      request('/api/sales', {
-        method: 'POST',
-        body: JSON.stringify(body),
-      }),
+      request(
+        '/api/sales',
+        { method: 'POST', body: JSON.stringify(body) },
+        25_000
+      ),
     get: (id) => request(`/api/sales/${id}`),
     list: (params = {}) => {
       const qs = new URLSearchParams(params).toString();

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Plus, Minus, Banknote, Smartphone, CreditCard } from 'lucide-react';
-import { api, formatCurrency } from '../services/api';
+import { Plus, Minus, Banknote, Smartphone, CreditCard, Loader2 } from 'lucide-react';
+import { api, formatCurrency, formatApiError } from '../services/api';
 import { useNotifications } from '../context/NotificationContext';
 import InvoiceModal from './sales/InvoiceModal';
 import Button from './ui/Button';
@@ -78,7 +78,11 @@ export default function QuickServiceSale({
 
   async function completeSale() {
     if (!cartItems.length) {
-      alert('Agrega al menos una unidad');
+      addNotification({
+        type: 'warning',
+        title: 'Sin unidades',
+        message: 'Agrega al menos una unidad antes de registrar la venta',
+      });
       return;
     }
     try {
@@ -100,7 +104,11 @@ export default function QuickServiceSale({
         message: `${sale.invoice_number} — ${formatCurrency(sale.total)}`,
       });
     } catch (err) {
-      alert(err.message);
+      addNotification({
+        type: 'error',
+        title: 'No se pudo registrar la venta',
+        message: formatApiError(err),
+      });
     } finally {
       setProcessing(false);
     }
@@ -210,12 +218,12 @@ export default function QuickServiceSale({
         <Button
           variant="success"
           size="xl"
-          icon={CreditCard}
-          className="w-full"
+          icon={processing ? Loader2 : CreditCard}
+          className={`w-full ${processing ? '[&_svg]:animate-spin' : ''}`}
           onClick={completeSale}
           disabled={processing || totalUnits === 0}
         >
-          {processing ? 'Procesando...' : 'Registrar venta'}
+          {processing ? 'Procesando venta...' : 'Registrar venta'}
         </Button>
       </Card>
 
