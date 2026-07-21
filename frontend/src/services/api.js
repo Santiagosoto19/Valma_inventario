@@ -80,6 +80,7 @@ export const api = {
   },
   products: {
     list: () => request('/api/products'),
+    services: (group) => request(`/api/products/services/${group}`),
     get: (id) => request(`/api/products/${id}`),
     create: (formData) =>
       request('/api/products', { method: 'POST', body: formData, headers: {} }),

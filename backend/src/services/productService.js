@@ -3,7 +3,17 @@ import { getStockThreshold } from './settingsService.js';
 import { emitStockAlert } from '../config/socket.js';
 
 export async function getAllProducts() {
-  const { rows } = await pool.query('SELECT * FROM products ORDER BY name ASC');
+  const { rows } = await pool.query(
+    'SELECT * FROM products WHERE service_group IS NULL ORDER BY name ASC'
+  );
+  return rows;
+}
+
+export async function getServiceProducts(group) {
+  const { rows } = await pool.query(
+    'SELECT * FROM products WHERE service_group = $1 ORDER BY price ASC',
+    [group]
+  );
   return rows;
 }
 
@@ -50,13 +60,16 @@ export async function deleteProduct(id) {
 export async function getLowStockProducts() {
   const threshold = await getStockThreshold();
   const { rows } = await pool.query(
-    'SELECT * FROM products WHERE stock <= $1 ORDER BY stock ASC, name ASC',
+    `SELECT * FROM products
+     WHERE service_group IS NULL AND track_stock = true AND stock <= $1
+     ORDER BY stock ASC, name ASC`,
     [threshold]
   );
   return { threshold, products: rows };
 }
 
 async function checkAndEmitStockAlert(product) {
+  if (product.track_stock === false || product.service_group) return;
   const threshold = await getStockThreshold();
   if (product.stock <= threshold) {
     emitStockAlert({ ...product, threshold });
@@ -66,6 +79,7 @@ async function checkAndEmitStockAlert(product) {
 export async function checkStockAlertsForProducts(products) {
   const threshold = await getStockThreshold();
   for (const product of products) {
+    if (product.track_stock === false || product.service_group) continue;
     if (product.stock <= threshold) {
       emitStockAlert({ ...product, threshold });
     }

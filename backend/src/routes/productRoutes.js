@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   listProducts,
+  listServiceProducts,
   getProduct,
   addProduct,
   editProduct,
@@ -12,6 +13,7 @@ import { upload } from '../middleware/upload.js';
 const router = Router();
 
 router.get('/', listProducts);
+router.get('/services/:group', listServiceProducts);
 router.get('/low-stock', listLowStock);
 router.get('/:id', getProduct);
 router.post('/', upload.single('image'), addProduct);

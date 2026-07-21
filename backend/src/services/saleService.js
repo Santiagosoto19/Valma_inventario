@@ -33,7 +33,8 @@ export async function createSale({ items, payment_method, global_discount = 0 })
       const product = productMap.get(item.product_id);
       if (!product) throw new Error(`Producto no encontrado: ${item.product_id}`);
       if (item.quantity <= 0) throw new Error(`Cantidad inválida para ${product.name}`);
-      if (product.stock < item.quantity) {
+      const tracksStock = product.track_stock !== false && !product.service_group;
+      if (tracksStock && product.stock < item.quantity) {
         throw new Error(
           `Stock insuficiente para "${product.name}". Disponible: ${product.stock}`
         );
@@ -58,6 +59,7 @@ export async function createSale({ items, payment_method, global_discount = 0 })
         line_subtotal: lineSubtotal,
         discount_amount: itemDiscount,
         subtotal: itemNet,
+        tracksStock,
       });
     }
 
@@ -99,11 +101,13 @@ export async function createSale({ items, payment_method, global_discount = 0 })
         ]
       );
 
-      const { rows: updated } = await client.query(
-        `UPDATE products SET stock = stock - $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
-        [item.quantity, item.product_id]
-      );
-      updatedProducts.push(updated[0]);
+      const { rows: updated } = item.tracksStock
+        ? await client.query(
+            `UPDATE products SET stock = stock - $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+            [item.quantity, item.product_id]
+          )
+        : await client.query('SELECT * FROM products WHERE id = $1', [item.product_id]);
+      if (updated[0]) updatedProducts.push(updated[0]);
     }
 
     await client.query('COMMIT');

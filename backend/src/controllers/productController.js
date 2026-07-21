@@ -1,6 +1,7 @@
 import {
   getAllProducts,
   getProductById,
+  getServiceProducts,
   createProduct,
   updateProduct,
   deleteProduct,
@@ -13,6 +14,19 @@ async function resolveImageUrl(req) {
     return uploadProductImage(req.file);
   }
   return req.body.image_url || null;
+}
+
+export async function listServiceProducts(req, res) {
+  try {
+    const group = req.params.group;
+    if (!['helados', 'copias'].includes(group)) {
+      return res.status(400).json({ error: 'Grupo inválido. Use helados o copias' });
+    }
+    const products = await getServiceProducts(group);
+    res.json(products);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 }
 
 export async function listProducts(req, res) {

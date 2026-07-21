@@ -16,15 +16,28 @@ ON CONFLICT (key) DO NOTHING;
 
 -- Productos
 CREATE TABLE IF NOT EXISTS products (
-    id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name        VARCHAR(200) NOT NULL,
-    description TEXT NOT NULL DEFAULT '',
-    image_url   TEXT,
-    stock       INTEGER NOT NULL DEFAULT 0 CHECK (stock >= 0),
-    price       DECIMAL(12, 2) NOT NULL CHECK (price >= 0),
-    created_at  TIMESTAMPTZ DEFAULT NOW(),
-    updated_at  TIMESTAMPTZ DEFAULT NOW()
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name            VARCHAR(200) NOT NULL,
+    description     TEXT NOT NULL DEFAULT '',
+    image_url       TEXT,
+    stock           INTEGER NOT NULL DEFAULT 0 CHECK (stock >= 0),
+    price           DECIMAL(12, 2) NOT NULL CHECK (price >= 0),
+    service_key     VARCHAR(50) UNIQUE,
+    service_group   VARCHAR(20),
+    track_stock     BOOLEAN NOT NULL DEFAULT true,
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ DEFAULT NOW()
 );
+
+CREATE INDEX IF NOT EXISTS idx_products_service_group ON products(service_group);
+
+INSERT INTO products (name, description, stock, price, service_key, service_group, track_stock)
+VALUES
+  ('Helado $2.500', 'Helado', 0, 2500, 'helado_2500', 'helados', false),
+  ('Helado $5.000', 'Helado', 0, 5000, 'helado_5000', 'helados', false),
+  ('Copia a color', 'Copia a color', 0, 500, 'copia_color', 'copias', false),
+  ('Copia blanco y negro', 'Copia blanco y negro', 0, 300, 'copia_bn', 'copias', false)
+ON CONFLICT (service_key) DO NOTHING;
 
 CREATE INDEX IF NOT EXISTS idx_products_stock ON products(stock);
 CREATE INDEX IF NOT EXISTS idx_products_name ON products(name);

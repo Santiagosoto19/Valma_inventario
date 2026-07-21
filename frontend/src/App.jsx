@@ -8,6 +8,8 @@ import AccountingPage from './pages/AccountingPage';
 import InventoryPage from './pages/InventoryPage';
 import LowStockPage from './pages/LowStockPage';
 import POSPage from './pages/POSPage';
+import HeladosPage from './pages/HeladosPage';
+import CopiasPage from './pages/CopiasPage';
 
 export default function App() {
   return (
@@ -20,6 +22,8 @@ export default function App() {
             <Route path="/inventario" element={<PrivateRoute><InventoryPage /></PrivateRoute>} />
             <Route path="/escasez" element={<PrivateRoute><LowStockPage /></PrivateRoute>} />
             <Route path="/caja" element={<PrivateRoute><POSPage /></PrivateRoute>} />
+            <Route path="/helados" element={<PrivateRoute><HeladosPage /></PrivateRoute>} />
+            <Route path="/copias" element={<PrivateRoute><CopiasPage /></PrivateRoute>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           <NotificationToast />

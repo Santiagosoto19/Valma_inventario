@@ -19,6 +19,9 @@ async function migrate() {
       console.log('BD existente → aplicando migración v2...');
       await client.query(readSql('migration_v2.sql'));
       console.log('✓ Migración v2 aplicada (descuentos + marcas)');
+      console.log('Aplicando migración v3 (servicios)...');
+      await client.query(readSql('migration_v3_services.sql'));
+      console.log('✓ Migración v3 aplicada (helados + copias)');
     }
 
     console.log('Base de datos lista.');
