@@ -139,9 +139,14 @@ export function aggregateSalesSummary(sales, meta = {}) {
     total_transactions: 0,
   };
 
+  const ignored = [];
+
   for (const sale of sales) {
     const amount = roundMoney(sale.total);
-    if (!Number.isFinite(amount)) continue;
+    if (!Number.isFinite(amount)) {
+      ignored.push({ reason: 'invalid_total', sale: { id: sale.id, invoice_number: sale.invoice_number, total: sale.total } });
+      continue;
+    }
 
     const method = normalizePaymentMethod(sale.payment_method);
     if (method === 'cash') {
@@ -150,10 +155,17 @@ export function aggregateSalesSummary(sales, meta = {}) {
     } else if (method === 'nequi') {
       summary.nequi.total = roundMoney(summary.nequi.total + amount);
       summary.nequi.transactions += 1;
+    } else {
+      ignored.push({ reason: 'unknown_method', sale: { id: sale.id, invoice_number: sale.invoice_number, payment_method: sale.payment_method } });
+      // still count toward grand total if payment method unknown? skip counting toward method totals
     }
 
     summary.grand_total = roundMoney(summary.grand_total + amount);
     summary.total_transactions += 1;
+  }
+
+  if (ignored.length) {
+    console.warn('aggregateSalesSummary: ignored sales', JSON.stringify(ignored.slice(0, 20)));
   }
 
   return summary;
