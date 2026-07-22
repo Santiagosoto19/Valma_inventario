@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Banknote, Smartphone, TrendingUp, Calendar, ChevronRight, Receipt } from 'lucide-react';
 import { api, formatCurrency } from '../services/api';
-import { formatDisplayDate, formatLocalDateTime, localYearMonth } from '../utils/dates';
+import { formatDisplayDate, formatLongDateSpanish, formatLocalDateTime, localYearMonth } from '../utils/dates';
 import MetricCard from '../components/ui/MetricCard';
 import Card from '../components/ui/Card';
 import SaleDetailModal from '../components/sales/SaleDetailModal';
@@ -123,8 +123,13 @@ export default function AccountingPage() {
 
       <section>
         <div className="flex items-center gap-2 mb-4">
-          <div className="w-2.5 h-2.5 rounded-full bg-pink-400 animate-pulse" />
-          <h3 className="text-lg font-bold text-slate-700">Cierre del día — {formatDisplayDate(daily?.date)}</h3>
+          <div className="w-2.5 h-2.5 rounded-full bg-pink-400 animate-pulse shrink-0" />
+          <h3 className="text-lg font-bold text-slate-700 flex items-center gap-2 flex-wrap">
+            <span>Cierre del día</span>
+            <span className="text-slate-400 font-medium">
+              {formatLongDateSpanish(daily?.date)}
+            </span>
+          </h3>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <MetricCard title="Efectivo" amount={daily?.cash?.total || 0} transactions={daily?.cash?.transactions || 0} icon={Banknote} variant="cash" />

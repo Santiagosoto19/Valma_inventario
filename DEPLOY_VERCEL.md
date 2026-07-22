@@ -4,12 +4,12 @@
 
 **Settings → General → Root Directory:** `frontend`
 
-| Campo | Valor |
-|-------|-------|
-| Root Directory | `frontend` |
-| Build Command | (vacío — lo define `vercel.json`) |
-| Output Directory | `dist` |
-| Install Command | (vacío — lo define `vercel.json`) |
+| Campo            | Valor                                |
+| ---------------- | ------------------------------------ |
+| Root Directory   | `frontend`                         |
+| Build Command    | (vacío — lo define`vercel.json`) |
+| Output Directory | `dist`                             |
+| Install Command  | (vacío — lo define`vercel.json`) |
 
 ## Variables de entorno
 
@@ -56,21 +56,21 @@ npm run db:migrate
 
 ## Si sale Error 504 (Gateway Timeout)
 
-| Causa | Solución |
-|-------|----------|
-| URL de Neon sin pooler | Usa `ep-xxx-pooler.neon.tech` en `DATABASE_URL` |
-| Cold start + BD lenta | Reintenta; la 1.ª petición puede tardar unos segundos |
-| Plan Hobby Vercel | Límite **10 s** por función (configurado en `vercel.json`) |
-| BD caída | `/api/health` con `db: unavailable` → revisa Neon |
+| Causa                  | Solución                                                           |
+| ---------------------- | ------------------------------------------------------------------- |
+| URL de Neon sin pooler | Usa`ep-xxx-pooler.neon.tech` en `DATABASE_URL`                  |
+| Cold start + BD lenta  | Reintenta; la 1.ª petición puede tardar unos segundos             |
+| Plan Hobby Vercel      | Límite**10 s** por función (configurado en `vercel.json`) |
+| BD caída              | `/api/health` con `db: unavailable` → revisa Neon              |
 
 ## Si sale "No se pudo conectar al servidor"
 
-| Revisa | Debe ser |
-|--------|----------|
-| Root Directory | `frontend` |
-| `/api/health` | Responde JSON, no 404 |
+| Revisa              | Debe ser                                                |
+| ------------------- | ------------------------------------------------------- |
+| Root Directory      | `frontend`                                            |
+| `/api/health`     | Responde JSON, no 404                                   |
 | Variables en Vercel | `DATABASE_URL`, `JWT_SECRET`, `ADMIN_*` definidas |
-| Redeploy | Después de cambiar variables |
+| Redeploy            | Después de cambiar variables                           |
 
 ## Arquitectura
 

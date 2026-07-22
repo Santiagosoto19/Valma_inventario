@@ -32,6 +32,26 @@ export function formatDisplayDate(isoDate) {
   return `${d}/${m}/${y}`;
 }
 
+/** Fecha larga en español (ej. 21 de julio, 2026) en zona Colombia. */
+export function formatLongDateSpanish(isoDate) {
+  const date = isoDate
+    ? new Date(`${String(isoDate).slice(0, 10)}T12:00:00`)
+    : new Date();
+
+  const parts = new Intl.DateTimeFormat('es-CO', {
+    timeZone: DISPLAY_TIMEZONE,
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).formatToParts(date);
+
+  const day = parts.find((p) => p.type === 'day')?.value ?? '';
+  const month = parts.find((p) => p.type === 'month')?.value ?? '';
+  const year = parts.find((p) => p.type === 'year')?.value ?? '';
+
+  return `${day} de ${month}, ${year}`;
+}
+
 /** Hora legible en Colombia. */
 export function formatLocalDateTime(value) {
   if (!value) return '';
