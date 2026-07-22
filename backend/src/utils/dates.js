@@ -30,6 +30,22 @@ export function sqlCreatedAtLocalDate(column = 'created_at') {
   return `(${column} AT TIME ZONE '${BUSINESS_TIMEZONE}')::date`;
 }
 
+/** SQL: venta incluida en una fecha comercial (sale_date o created_at Colombia). */
+export function sqlSaleMatchesDate(paramIndex) {
+  const localDate = sqlCreatedAtLocalDate('created_at');
+  return `(sale_date = $${paramIndex}::date OR ${localDate} = $${paramIndex}::date)`;
+}
+
+/** SQL: venta incluida en un mes comercial. */
+export function sqlSaleMatchesMonth(yearIndex, monthIndex) {
+  const localDate = sqlCreatedAtLocalDate('created_at');
+  return `(
+    (EXTRACT(YEAR FROM sale_date) = $${yearIndex} AND EXTRACT(MONTH FROM sale_date) = $${monthIndex})
+    OR
+    (EXTRACT(YEAR FROM ${localDate}) = $${yearIndex} AND EXTRACT(MONTH FROM ${localDate}) = $${monthIndex})
+  )`;
+}
+
 /** SQL: fecha Colombia actual al insertar ventas. */
 export function sqlTodayLocalDate() {
   return `(NOW() AT TIME ZONE '${BUSINESS_TIMEZONE}')::date`;
@@ -48,10 +64,65 @@ export function formatPgDate(value) {
   return String(value).slice(0, 10);
 }
 
+/** Fecha comercial de una venta (prioriza created_at en Colombia). */
+export function businessDateFromSale(sale) {
+  if (sale?.created_at) {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: BUSINESS_TIMEZONE,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date(sale.created_at));
+  }
+  return formatPgDate(sale?.sale_date);
+}
+
+export function normalizePaymentMethod(value) {
+  const key = String(value ?? '').trim().toLowerCase();
+  if (key === 'cash' || key === 'efectivo') return 'cash';
+  if (key === 'nequi') return 'nequi';
+  return key;
+}
+
+function roundMoney(n) {
+  return Math.round(Number(n) * 100) / 100;
+}
+
+export function aggregateSalesSummary(sales, meta = {}) {
+  const summary = {
+    ...meta,
+    cash: { total: 0, transactions: 0 },
+    nequi: { total: 0, transactions: 0 },
+    grand_total: 0,
+    total_transactions: 0,
+  };
+
+  for (const sale of sales) {
+    const amount = roundMoney(sale.total);
+    if (!Number.isFinite(amount)) continue;
+
+    const method = normalizePaymentMethod(sale.payment_method);
+    if (method === 'cash') {
+      summary.cash.total = roundMoney(summary.cash.total + amount);
+      summary.cash.transactions += 1;
+    } else if (method === 'nequi') {
+      summary.nequi.total = roundMoney(summary.nequi.total + amount);
+      summary.nequi.transactions += 1;
+    }
+
+    summary.grand_total = roundMoney(summary.grand_total + amount);
+    summary.total_transactions += 1;
+  }
+
+  return summary;
+}
+
 export function normalizeSaleRecord(sale) {
   if (!sale) return sale;
   return {
     ...sale,
     sale_date: formatPgDate(sale.sale_date),
+    total: roundMoney(sale.total),
+    payment_method: normalizePaymentMethod(sale.payment_method),
   };
 }

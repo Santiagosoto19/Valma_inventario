@@ -1,48 +1,16 @@
-import { queryWithTimeout } from '../config/database.js';
+import { getSales } from './saleService.js';
 import {
-  formatPgDate,
+  aggregateSalesSummary,
+  businessDateFromSale,
   localYearMonth,
-  sqlCreatedAtLocalDate,
+  normalizePaymentMethod,
   todayLocal,
 } from '../utils/dates.js';
 
-const localSaleDate = sqlCreatedAtLocalDate('created_at');
-
 export async function getDailyReport(date) {
   const targetDate = date || todayLocal();
-
-  const { rows } = await queryWithTimeout(
-    `SELECT
-       payment_method,
-       COUNT(*)::INTEGER AS transaction_count,
-       COALESCE(SUM(total), 0)::DECIMAL AS total_amount
-     FROM sales
-     WHERE ${localSaleDate} = $1::date
-     GROUP BY payment_method`,
-    [targetDate]
-  );
-
-  const summary = {
-    date: targetDate,
-    cash: { total: 0, transactions: 0 },
-    nequi: { total: 0, transactions: 0 },
-    grand_total: 0,
-    total_transactions: 0,
-  };
-
-  for (const row of rows) {
-    const amount = Number(row.total_amount);
-    const count = row.transaction_count;
-    if (row.payment_method === 'cash') {
-      summary.cash = { total: amount, transactions: count };
-    } else if (row.payment_method === 'nequi') {
-      summary.nequi = { total: amount, transactions: count };
-    }
-    summary.grand_total += amount;
-    summary.total_transactions += count;
-  }
-
-  return summary;
+  const sales = await getSales({ date: targetDate });
+  return aggregateSalesSummary(sales, { date: targetDate });
 }
 
 export async function getMonthlyReport(year, month) {
@@ -50,58 +18,20 @@ export async function getMonthlyReport(year, month) {
   const targetYear = year || localYear;
   const targetMonth = month || localMonth;
 
-  const { rows: monthlyTotals } = await queryWithTimeout(
-    `SELECT
-       payment_method,
-       COUNT(*)::INTEGER AS transaction_count,
-       COALESCE(SUM(total), 0)::DECIMAL AS total_amount
-     FROM sales
-     WHERE EXTRACT(YEAR FROM ${localSaleDate}) = $1
-       AND EXTRACT(MONTH FROM ${localSaleDate}) = $2
-     GROUP BY payment_method`,
-    [targetYear, targetMonth]
-  );
+  const sales = await getSales({ month: targetMonth, year: targetYear });
 
-  const { rows: dailyBreakdown } = await queryWithTimeout(
-    `SELECT
-       ${localSaleDate} AS sale_date,
-       payment_method,
-       COUNT(*)::INTEGER AS transaction_count,
-       COALESCE(SUM(total), 0)::DECIMAL AS total_amount
-     FROM sales
-     WHERE EXTRACT(YEAR FROM ${localSaleDate}) = $1
-       AND EXTRACT(MONTH FROM ${localSaleDate}) = $2
-     GROUP BY ${localSaleDate}, payment_method
-     ORDER BY ${localSaleDate} ASC`,
-    [targetYear, targetMonth]
-  );
-
-  const summary = {
+  const summary = aggregateSalesSummary(sales, {
     year: targetYear,
     month: targetMonth,
-    cash: { total: 0, transactions: 0 },
-    nequi: { total: 0, transactions: 0 },
-    grand_total: 0,
-    total_transactions: 0,
     daily: {},
-  };
+  });
 
-  for (const row of monthlyTotals) {
-    const amount = Number(row.total_amount);
-    const count = row.transaction_count;
-    if (row.payment_method === 'cash') {
-      summary.cash = { total: amount, transactions: count };
-    } else if (row.payment_method === 'nequi') {
-      summary.nequi = { total: amount, transactions: count };
-    }
-    summary.grand_total += amount;
-    summary.total_transactions += count;
-  }
+  const dailyMap = {};
 
-  for (const row of dailyBreakdown) {
-    const dateKey = formatPgDate(row.sale_date);
-    if (!summary.daily[dateKey]) {
-      summary.daily[dateKey] = {
+  for (const sale of sales) {
+    const dateKey = businessDateFromSale(sale);
+    if (!dailyMap[dateKey]) {
+      dailyMap[dateKey] = {
         date: dateKey,
         cash: 0,
         nequi: 0,
@@ -109,13 +39,23 @@ export async function getMonthlyReport(year, month) {
         transactions: 0,
       };
     }
-    const amount = Number(row.total_amount);
-    summary.daily[dateKey][row.payment_method] = amount;
-    summary.daily[dateKey].total += amount;
-    summary.daily[dateKey].transactions += row.transaction_count;
+
+    const amount = Number(sale.total) || 0;
+    const method = normalizePaymentMethod(sale.payment_method);
+    if (method === 'cash') dailyMap[dateKey].cash += amount;
+    else if (method === 'nequi') dailyMap[dateKey].nequi += amount;
+    dailyMap[dateKey].total += amount;
+    dailyMap[dateKey].transactions += 1;
   }
 
-  summary.daily = Object.values(summary.daily);
+  summary.daily = Object.values(dailyMap)
+    .map((day) => ({
+      ...day,
+      cash: Math.round(day.cash * 100) / 100,
+      nequi: Math.round(day.nequi * 100) / 100,
+      total: Math.round(day.total * 100) / 100,
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
 
   return summary;
 }

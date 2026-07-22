@@ -1,6 +1,6 @@
 import { queryWithTimeout, connectWithTimeout } from '../config/database.js';
 import { checkStockAlertsForProducts } from './productService.js';
-import { normalizeSaleRecord, sqlCreatedAtLocalDate, sqlTodayLocalDate } from '../utils/dates.js';
+import { normalizeSaleRecord, sqlSaleMatchesDate, sqlSaleMatchesMonth, sqlTodayLocalDate } from '../utils/dates.js';
 
 function roundMoney(n) {
   return Math.round(Number(n) * 100) / 100;
@@ -169,15 +169,13 @@ export async function getSales({ date, month, year } = {}) {
   let query = 'SELECT * FROM sales';
   const params = [];
   const conditions = [];
-  const localSaleDate = sqlCreatedAtLocalDate('created_at');
 
   if (date) {
     params.push(date);
-    conditions.push(`${localSaleDate} = $${params.length}::date`);
+    conditions.push(sqlSaleMatchesDate(params.length));
   } else if (month && year) {
     params.push(parseInt(year, 10), parseInt(month, 10));
-    conditions.push(`EXTRACT(YEAR FROM ${localSaleDate}) = $${params.length - 1}`);
-    conditions.push(`EXTRACT(MONTH FROM ${localSaleDate}) = $${params.length}`);
+    conditions.push(sqlSaleMatchesMonth(params.length - 1, params.length));
   }
 
   if (conditions.length) query += ' WHERE ' + conditions.join(' AND ');
