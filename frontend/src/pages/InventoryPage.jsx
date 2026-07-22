@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2, Package } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Plus, Pencil, Trash2, Package, SearchX } from 'lucide-react';
 import { api, formatCurrency, formatApiError } from '../services/api';
 import ProductImage from '../components/ui/ProductImage';
 import ProductForm from '../components/ProductForm';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
+import InventoryNav from '../components/inventory/InventoryNav';
+import InventoryFilters, { filterProducts } from '../components/inventory/InventoryFilters';
 import { useNotifications } from '../context/NotificationContext';
 
 export default function InventoryPage() {
@@ -13,6 +15,10 @@ export default function InventoryPage() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [error, setError] = useState('');
+  const [search, setSearch] = useState('');
+  const [stockFilter, setStockFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('name_asc');
+  const [threshold, setThreshold] = useState(5);
   const { addNotification } = useNotifications();
 
   useEffect(() => { loadProducts(); }, []);
@@ -20,13 +26,23 @@ export default function InventoryPage() {
   async function loadProducts() {
     try {
       setLoading(true);
-      setProducts(await api.products.list());
+      const [productList, settings] = await Promise.all([
+        api.products.list(),
+        api.settings.get().catch(() => ({ stock_threshold: 5 })),
+      ]);
+      setProducts(productList);
+      setThreshold(settings.stock_threshold ?? 5);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
   }
+
+  const filteredProducts = useMemo(
+    () => filterProducts(products, { search, stockFilter, sortBy, threshold }),
+    [products, search, stockFilter, sortBy, threshold]
+  );
 
   async function handleDelete(id) {
     if (!confirm('¿Eliminar este producto?')) return;
@@ -62,6 +78,21 @@ export default function InventoryPage() {
         </Button>
       </div>
 
+      <InventoryNav />
+
+      <Card className="p-4 sm:p-5">
+        <InventoryFilters
+          search={search}
+          onSearchChange={setSearch}
+          stockFilter={stockFilter}
+          onStockFilterChange={setStockFilter}
+          sortBy={sortBy}
+          onSortChange={setSortBy}
+          totalCount={products.length}
+          filteredCount={filteredProducts.length}
+        />
+      </Card>
+
       {error && (
         <Card className="p-4 bg-rose-50 border-rose-200 text-rose-700 font-medium">{error}</Card>
       )}
@@ -79,9 +110,22 @@ export default function InventoryPage() {
           <Package size={48} className="mx-auto text-pastel-lavender-deep mb-4" strokeWidth={1.5} />
           <p className="text-slate-500 font-medium">No hay productos. Agrega el primero.</p>
         </Card>
+      ) : filteredProducts.length === 0 ? (
+        <Card className="p-16 text-center">
+          <SearchX size={48} className="mx-auto text-pastel-lavender-deep mb-4" strokeWidth={1.5} />
+          <p className="text-slate-600 font-bold">Sin resultados</p>
+          <p className="text-slate-500 text-sm mt-1">Prueba otro término o cambia los filtros</p>
+          <Button
+            variant="ghost"
+            className="mt-4 mx-auto"
+            onClick={() => { setSearch(''); setStockFilter('all'); }}
+          >
+            Limpiar filtros
+          </Button>
+        </Card>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {products.map((product) => (
+          {filteredProducts.map((product) => (
             <Card key={product.id} className="overflow-hidden flex flex-col hover:shadow-soft transition-all duration-300 hover:scale-[1.01]">
               <ProductImage
                 src={product.image_url}
@@ -96,9 +140,11 @@ export default function InventoryPage() {
                 </p>
                 <div className="flex justify-between items-center mt-4">
                   <span className={`text-sm font-bold px-3 py-1 rounded-full ${
-                    product.stock <= 5
-                      ? 'bg-amber-100 text-amber-700'
-                      : 'bg-emerald-100 text-emerald-700'
+                    product.stock === 0
+                      ? 'bg-rose-100 text-rose-700'
+                      : product.stock <= threshold
+                        ? 'bg-amber-100 text-amber-700'
+                        : 'bg-emerald-100 text-emerald-700'
                   }`}>
                     Stock: {product.stock}
                   </span>

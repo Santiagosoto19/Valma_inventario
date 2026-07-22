@@ -1,7 +1,8 @@
 import { queryWithTimeout } from '../config/database.js';
+import { formatPgDate, localYearMonth, todayLocal } from '../utils/dates.js';
 
 export async function getDailyReport(date) {
-  const targetDate = date || new Date().toISOString().split('T')[0];
+  const targetDate = date || todayLocal();
 
   const { rows } = await queryWithTimeout(
     `SELECT
@@ -38,9 +39,9 @@ export async function getDailyReport(date) {
 }
 
 export async function getMonthlyReport(year, month) {
-  const now = new Date();
-  const targetYear = year || now.getFullYear();
-  const targetMonth = month || now.getMonth() + 1;
+  const { year: localYear, month: localMonth } = localYearMonth();
+  const targetYear = year || localYear;
+  const targetMonth = month || localMonth;
 
   const { rows: monthlyTotals } = await queryWithTimeout(
     `SELECT
@@ -91,7 +92,7 @@ export async function getMonthlyReport(year, month) {
   }
 
   for (const row of dailyBreakdown) {
-    const dateKey = row.sale_date.toISOString().split('T')[0];
+    const dateKey = formatPgDate(row.sale_date);
     if (!summary.daily[dateKey]) {
       summary.daily[dateKey] = {
         date: dateKey,
@@ -113,11 +114,11 @@ export async function getMonthlyReport(year, month) {
 }
 
 export async function getAccountingDashboard() {
-  const today = new Date().toISOString().split('T')[0];
-  const now = new Date();
+  const today = todayLocal();
+  const { year, month } = localYearMonth();
   const [daily, monthly] = await Promise.all([
     getDailyReport(today),
-    getMonthlyReport(now.getFullYear(), now.getMonth() + 1),
+    getMonthlyReport(year, month),
   ]);
   return { daily, monthly };
 }

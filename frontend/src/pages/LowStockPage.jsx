@@ -4,6 +4,7 @@ import { api, formatCurrency, formatApiError } from '../services/api';
 import ProductImage from '../components/ui/ProductImage';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
+import InventoryNav from '../components/inventory/InventoryNav';
 import { useNotifications } from '../context/NotificationContext';
 
 export default function LowStockPage() {
@@ -61,6 +62,8 @@ export default function LowStockPage() {
         <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-800">Stock Crítico</h2>
         <p className="text-slate-500 mt-1 font-medium">Productos próximos a agotarse</p>
       </div>
+
+      <InventoryNav />
 
       <Card className="p-5 flex flex-col sm:flex-row sm:items-end gap-4">
         <div className="flex-1">

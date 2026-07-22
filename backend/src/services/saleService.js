@@ -1,5 +1,6 @@
 import { queryWithTimeout, connectWithTimeout } from '../config/database.js';
 import { checkStockAlertsForProducts } from './productService.js';
+import { normalizeSaleRecord, todayLocal } from '../utils/dates.js';
 
 function roundMoney(n) {
   return Math.round(Number(n) * 100) / 100;
@@ -95,9 +96,11 @@ export async function createSale({ items, payment_method, global_discount = 0 })
       "SELECT 'FAC-' || nextval('invoice_seq') AS invoice_number"
     );
 
+    const saleDate = todayLocal();
+
     const { rows: saleRows } = await client.query(
       `INSERT INTO sales (invoice_number, subtotal, discount_items, discount_global, total, payment_method, sale_date)
-       VALUES ($1, $2, $3, $4, $5, $6, CURRENT_DATE) RETURNING *`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7::date) RETURNING *`,
       [
         invoiceRows[0].invoice_number,
         subtotal,
@@ -105,6 +108,7 @@ export async function createSale({ items, payment_method, global_discount = 0 })
         globalDiscount,
         total,
         payment_method,
+        saleDate,
       ]
     );
     const sale = saleRows[0];
@@ -139,7 +143,7 @@ export async function createSale({ items, payment_method, global_discount = 0 })
       checkStockAlertsForProducts(updatedProducts).catch(console.error);
     }
 
-    return { ...sale, items: mapSaleItems(sale.id, saleItems) };
+    return normalizeSaleRecord({ ...sale, items: mapSaleItems(sale.id, saleItems) });
   } catch (error) {
     if (client) {
       try {
@@ -161,7 +165,7 @@ export async function getSaleById(id) {
     'SELECT * FROM sale_items WHERE sale_id = $1',
     [id]
   );
-  return { ...sales[0], items };
+  return normalizeSaleRecord({ ...sales[0], items });
 }
 
 export async function getSales({ date, month, year } = {}) {
@@ -182,5 +186,5 @@ export async function getSales({ date, month, year } = {}) {
   query += ' ORDER BY created_at DESC LIMIT 500';
 
   const { rows } = await queryWithTimeout(query, params);
-  return rows;
+  return rows.map(normalizeSaleRecord);
 }

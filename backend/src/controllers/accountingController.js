@@ -4,6 +4,7 @@ import {
   getMonthlyReport,
 } from '../services/accountingService.js';
 import { httpStatusFromError } from '../utils/httpErrors.js';
+import { localYearMonth } from '../utils/dates.js';
 
 export async function dashboard(req, res) {
   try {
@@ -25,9 +26,9 @@ export async function dailyReport(req, res) {
 
 export async function monthlyReport(req, res) {
   try {
-    const now = new Date();
-    const year = req.query.year ? parseInt(req.query.year, 10) : now.getFullYear();
-    const month = req.query.month ? parseInt(req.query.month, 10) : now.getMonth() + 1;
+    const { year: defaultYear, month: defaultMonth } = localYearMonth();
+    const year = req.query.year ? parseInt(req.query.year, 10) : defaultYear;
+    const month = req.query.month ? parseInt(req.query.month, 10) : defaultMonth;
     const data = await getMonthlyReport(year, month);
     res.json(data);
   } catch (error) {

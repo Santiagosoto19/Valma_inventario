@@ -22,6 +22,9 @@ async function migrate() {
       console.log('Aplicando migración v3 (servicios)...');
       await client.query(readSql('migration_v3_services.sql'));
       console.log('✓ Migración v3 aplicada (helados + copias)');
+      console.log('Aplicando migración v4 (fecha ventas Colombia)...');
+      await client.query(readSql('migration_v4_sale_date_tz.sql'));
+      console.log('✓ Migración v4 aplicada (sale_date en America/Bogota)');
     }
 
     console.log('Base de datos lista.');

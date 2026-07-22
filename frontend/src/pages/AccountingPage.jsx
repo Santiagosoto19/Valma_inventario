@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Banknote, Smartphone, TrendingUp, Calendar, ChevronRight, Receipt } from 'lucide-react';
 import { api, formatCurrency } from '../services/api';
+import { formatDisplayDate } from '../utils/dates';
 import MetricCard from '../components/ui/MetricCard';
 import Card from '../components/ui/Card';
 import SaleDetailModal from '../components/sales/SaleDetailModal';
@@ -121,7 +122,7 @@ export default function AccountingPage() {
       <section>
         <div className="flex items-center gap-2 mb-4">
           <div className="w-2.5 h-2.5 rounded-full bg-pink-400 animate-pulse" />
-          <h3 className="text-lg font-bold text-slate-700">Cierre del día — {daily?.date}</h3>
+          <h3 className="text-lg font-bold text-slate-700">Cierre del día — {formatDisplayDate(daily?.date)}</h3>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <MetricCard title="Efectivo" amount={daily?.cash?.total || 0} transactions={daily?.cash?.transactions || 0} icon={Banknote} variant="cash" />
@@ -169,7 +170,7 @@ export default function AccountingPage() {
                 <tbody>
                   {monthlyDetail.daily.map((day) => (
                     <tr key={day.date} className="border-b border-pastel-lavender/10 hover:bg-pink-50/30">
-                      <td className="px-4 py-3 font-medium">{day.date}</td>
+                      <td className="px-4 py-3 font-medium">{formatDisplayDate(day.date)}</td>
                       <td className="px-4 py-3 text-right text-emerald-700 font-semibold">{formatCurrency(day.cash)}</td>
                       <td className="px-4 py-3 text-right text-indigo-700 font-semibold">{formatCurrency(day.nequi)}</td>
                       <td className="px-4 py-3 text-right font-bold">{formatCurrency(day.total)}</td>
