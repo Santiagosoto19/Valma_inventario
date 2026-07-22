@@ -74,6 +74,7 @@ export default function AccountingPage() {
   }
 
   const { daily, monthly } = data || {};
+  const currentMonthly = monthlyDetail || monthly;
 
   const SalesList = ({ sales, title }) => (
     <div className="mt-4">
@@ -132,9 +133,9 @@ export default function AccountingPage() {
           </h3>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <MetricCard title="Efectivo" amount={daily?.cash?.total || 0} transactions={daily?.cash?.transactions || 0} icon={Banknote} variant="cash" />
-          <MetricCard title="Nequi" amount={daily?.nequi?.total || 0} transactions={daily?.nequi?.transactions || 0} icon={Smartphone} variant="nequi" />
-          <MetricCard title="Total vendido hoy" amount={daily?.grand_total || 0} transactions={daily?.total_transactions || 0} icon={TrendingUp} variant="total" />
+          <MetricCard title="Efectivo" amount={daily?.cash?.total ?? 0} transactions={daily?.cash?.transactions ?? 0} icon={Banknote} variant="cash" />
+          <MetricCard title="Nequi" amount={daily?.nequi?.total ?? 0} transactions={daily?.nequi?.transactions ?? 0} icon={Smartphone} variant="nequi" />
+          <MetricCard title="Total vendido hoy" amount={daily?.grand_total ?? 0} transactions={daily?.total_transactions ?? 0} icon={TrendingUp} variant="total" />
         </div>
         <SalesList sales={dailySales} title="Ventas de hoy" />
       </section>
@@ -156,9 +157,9 @@ export default function AccountingPage() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-          <MetricCard title="Efectivo del mes" amount={monthlyDetail?.cash?.total || monthly?.cash?.total || 0} transactions={monthlyDetail?.cash?.transactions || monthly?.cash?.transactions || 0} icon={Banknote} variant="cash" />
-          <MetricCard title="Nequi del mes" amount={monthlyDetail?.nequi?.total || monthly?.nequi?.total || 0} transactions={monthlyDetail?.nequi?.transactions || monthly?.nequi?.transactions || 0} icon={Smartphone} variant="nequi" />
-          <MetricCard title="Total del mes" amount={monthlyDetail?.grand_total || monthly?.grand_total || 0} transactions={monthlyDetail?.total_transactions || monthly?.total_transactions || 0} icon={TrendingUp} variant="total" />
+          <MetricCard title="Efectivo del mes" amount={currentMonthly?.cash?.total ?? 0} transactions={currentMonthly?.cash?.transactions ?? 0} icon={Banknote} variant="cash" />
+          <MetricCard title="Nequi del mes" amount={currentMonthly?.nequi?.total ?? 0} transactions={currentMonthly?.nequi?.transactions ?? 0} icon={Smartphone} variant="nequi" />
+          <MetricCard title="Total del mes" amount={currentMonthly?.grand_total ?? 0} transactions={currentMonthly?.total_transactions ?? 0} icon={TrendingUp} variant="total" />
         </div>
 
         {monthlyDetail?.daily?.length > 0 && (

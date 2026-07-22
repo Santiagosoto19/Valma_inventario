@@ -1,5 +1,5 @@
 /** Zona horaria del negocio (Colombia, UTC-5). */
-export const BUSINESS_TIMEZONE = process.env.TZ || 'America/Bogota';
+export const BUSINESS_TIMEZONE = process.env.BUSINESS_TZ || 'America/Bogota';
 
 /** Fecha local YYYY-MM-DD en la zona del negocio. */
 export function todayLocal(date = new Date()) {
