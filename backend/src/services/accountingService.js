@@ -1,5 +1,12 @@
 import { queryWithTimeout } from '../config/database.js';
-import { formatPgDate, localYearMonth, todayLocal } from '../utils/dates.js';
+import {
+  formatPgDate,
+  localYearMonth,
+  sqlCreatedAtLocalDate,
+  todayLocal,
+} from '../utils/dates.js';
+
+const localSaleDate = sqlCreatedAtLocalDate('created_at');
 
 export async function getDailyReport(date) {
   const targetDate = date || todayLocal();
@@ -10,7 +17,7 @@ export async function getDailyReport(date) {
        COUNT(*)::INTEGER AS transaction_count,
        COALESCE(SUM(total), 0)::DECIMAL AS total_amount
      FROM sales
-     WHERE sale_date = $1
+     WHERE ${localSaleDate} = $1::date
      GROUP BY payment_method`,
     [targetDate]
   );
@@ -49,23 +56,23 @@ export async function getMonthlyReport(year, month) {
        COUNT(*)::INTEGER AS transaction_count,
        COALESCE(SUM(total), 0)::DECIMAL AS total_amount
      FROM sales
-     WHERE EXTRACT(YEAR FROM sale_date) = $1
-       AND EXTRACT(MONTH FROM sale_date) = $2
+     WHERE EXTRACT(YEAR FROM ${localSaleDate}) = $1
+       AND EXTRACT(MONTH FROM ${localSaleDate}) = $2
      GROUP BY payment_method`,
     [targetYear, targetMonth]
   );
 
   const { rows: dailyBreakdown } = await queryWithTimeout(
     `SELECT
-       sale_date,
+       ${localSaleDate} AS sale_date,
        payment_method,
        COUNT(*)::INTEGER AS transaction_count,
        COALESCE(SUM(total), 0)::DECIMAL AS total_amount
      FROM sales
-     WHERE EXTRACT(YEAR FROM sale_date) = $1
-       AND EXTRACT(MONTH FROM sale_date) = $2
-     GROUP BY sale_date, payment_method
-     ORDER BY sale_date ASC`,
+     WHERE EXTRACT(YEAR FROM ${localSaleDate}) = $1
+       AND EXTRACT(MONTH FROM ${localSaleDate}) = $2
+     GROUP BY ${localSaleDate}, payment_method
+     ORDER BY ${localSaleDate} ASC`,
     [targetYear, targetMonth]
   );
 

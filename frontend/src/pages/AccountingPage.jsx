@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Banknote, Smartphone, TrendingUp, Calendar, ChevronRight, Receipt } from 'lucide-react';
 import { api, formatCurrency } from '../services/api';
-import { formatDisplayDate } from '../utils/dates';
+import { formatDisplayDate, formatLocalDateTime, localYearMonth } from '../utils/dates';
 import MetricCard from '../components/ui/MetricCard';
 import Card from '../components/ui/Card';
 import SaleDetailModal from '../components/sales/SaleDetailModal';
@@ -14,11 +14,13 @@ const MONTHS = [
 const PAYMENT_ICON = { cash: Banknote, nequi: Smartphone };
 const PAYMENT_COLOR = { cash: 'text-emerald-700', nequi: 'text-indigo-700' };
 
+const { year: initialYear, month: initialMonth } = localYearMonth();
+
 export default function AccountingPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(initialMonth);
+  const [selectedYear, setSelectedYear] = useState(initialYear);
   const [monthlyDetail, setMonthlyDetail] = useState(null);
   const [dailySales, setDailySales] = useState([]);
   const [monthlySales, setMonthlySales] = useState([]);
@@ -95,7 +97,7 @@ export default function AccountingPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-sm text-slate-800">{sale.invoice_number}</p>
-                  <p className="text-xs text-slate-500">{new Date(sale.created_at).toLocaleString('es-CO')}</p>
+                  <p className="text-xs text-slate-500">{formatLocalDateTime(sale.created_at)}</p>
                 </div>
                 <div className="text-right shrink-0">
                   <p className="font-extrabold text-pink-600">{formatCurrency(sale.total)}</p>

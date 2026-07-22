@@ -1,6 +1,4 @@
--- Corrige sale_date usando la hora real de la venta (created_at) en zona Colombia.
--- Ventas hechas después de las 19:00 UTC-5 quedaban guardadas con el día siguiente.
+-- Sincroniza sale_date con la hora real de la venta en Colombia (America/Bogota).
 
 UPDATE sales
-SET sale_date = (created_at AT TIME ZONE 'America/Bogota')::date
-WHERE sale_date IS DISTINCT FROM (created_at AT TIME ZONE 'America/Bogota')::date;
+SET sale_date = (created_at AT TIME ZONE 'America/Bogota')::date;

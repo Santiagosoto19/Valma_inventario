@@ -25,6 +25,16 @@ export function localYearMonth(date = new Date()) {
   };
 }
 
+/** SQL: fecha Colombia desde created_at (timestamptz). */
+export function sqlCreatedAtLocalDate(column = 'created_at') {
+  return `(${column} AT TIME ZONE '${BUSINESS_TIMEZONE}')::date`;
+}
+
+/** SQL: fecha Colombia actual al insertar ventas. */
+export function sqlTodayLocalDate() {
+  return `(NOW() AT TIME ZONE '${BUSINESS_TIMEZONE}')::date`;
+}
+
 /** Convierte DATE de PostgreSQL (node-pg → Date UTC) a YYYY-MM-DD sin desfase. */
 export function formatPgDate(value) {
   if (!value) return null;
