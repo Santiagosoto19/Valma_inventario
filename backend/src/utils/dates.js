@@ -85,7 +85,49 @@ export function normalizePaymentMethod(value) {
 }
 
 function roundMoney(n) {
-  return Math.round(Number(n) * 100) / 100;
+  const v = parseMoney(n);
+  return Math.round(v * 100) / 100;
+}
+
+/**
+ * Parse a monetary value from various string formats into a Number.
+ * Handles values like "$4.500", "4.500", "4,500.25", "4,500", and plain numbers.
+ */
+export function parseMoney(value) {
+  if (value == null) return NaN;
+  if (typeof value === 'number') return value;
+  let s = String(value).trim();
+  if (!s) return NaN;
+  // Remove currency symbols and whitespace
+  s = s.replace(/[^0-9.,-]/g, '');
+
+  const hasComma = s.indexOf(',') !== -1;
+  const hasDot = s.indexOf('.') !== -1;
+
+  if (hasDot && hasComma) {
+    // assume format like 1.234,56 -> dot thousands, comma decimal
+    s = s.replace(/\./g, '').replace(',', '.');
+  } else if (hasComma && !hasDot) {
+    // assume comma is decimal separator
+    s = s.replace(',', '.');
+  } else if (hasDot && !hasComma) {
+    // ambiguous: single dot could be decimal or thousand separator
+    const dotCount = (s.match(/\./g) || []).length;
+    if (dotCount > 1) {
+      // multiple dots -> remove all (thousand separators)
+      s = s.replace(/\./g, '');
+    } else {
+      const parts = s.split('.');
+      // if there are exactly 3 digits after dot, it's likely a thousands separator
+      if (parts[1] && parts[1].length === 3) {
+        s = s.replace(/\./g, '');
+      }
+      // otherwise leave as decimal
+    }
+  }
+
+  const num = Number(s);
+  return Number.isFinite(num) ? num : NaN;
 }
 
 export function aggregateSalesSummary(sales, meta = {}) {
