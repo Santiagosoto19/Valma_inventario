@@ -42,7 +42,7 @@ function ProductGrid({ search, onSearchChange, filteredProducts, onAddToCart }) 
                 iconSize={28}
               />
             </div>
-            <p className="font-bold text-sm truncate text-slate-800">{product.name}</p>
+            <p className="font-bold text-sm text-slate-800 break-words whitespace-normal leading-snug">{product.name}</p>
             <p className="text-pink-600 font-extrabold text-sm mt-1">{formatCurrency(product.price)}</p>
             <p className="text-xs text-slate-400 font-medium mt-0.5">Stock: {product.stock}</p>
           </button>
@@ -92,7 +92,7 @@ function CartPanel({
             <div key={item.product.id} className="p-3 rounded-2xl bg-pastel-lavender/10 space-y-2">
               <div className="flex items-center gap-2">
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-sm truncate">{item.product.name}</p>
+                  <p className="font-bold text-sm break-words whitespace-normal leading-snug">{item.product.name}</p>
                   <p className="text-xs text-slate-500">{formatCurrency(item.product.price)} × {item.quantity}</p>
                 </div>
                 <div className="flex items-center gap-1">
