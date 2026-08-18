@@ -1,6 +1,31 @@
 /** Zona horaria del negocio (Colombia, UTC-5). */
 export const BUSINESS_TIMEZONE = process.env.BUSINESS_TZ || 'America/Bogota';
 
+/** El mes comercial cierra el día 18 (del 18 del mes anterior al 18 inclusive). */
+export const BUSINESS_MONTH_DAY = 18;
+
+function pad2(n) {
+  return String(n).padStart(2, '0');
+}
+
+function ymd(year, month, day) {
+  return `${year}-${pad2(month)}-${pad2(day)}`;
+}
+
+function addCalendarMonths(year, month, delta) {
+  const total = Number(year) * 12 + (Number(month) - 1) + delta;
+  return {
+    year: Math.floor(total / 12),
+    month: (total % 12) + 1,
+  };
+}
+
+function addIsoDays(isoDate, days) {
+  const d = new Date(`${isoDate}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 /** Fecha local YYYY-MM-DD en la zona del negocio. */
 export function todayLocal(date = new Date()) {
   return new Intl.DateTimeFormat('en-CA', {
@@ -11,47 +36,68 @@ export function todayLocal(date = new Date()) {
   }).format(date);
 }
 
-/** Año y mes (1-12) en la zona del negocio. */
-export function localYearMonth(date = new Date()) {
+export function localDateParts(date = new Date()) {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: BUSINESS_TIMEZONE,
     year: 'numeric',
     month: 'numeric',
+    day: 'numeric',
   }).formatToParts(date);
 
   return {
     year: Number(parts.find((p) => p.type === 'year').value),
     month: Number(parts.find((p) => p.type === 'month').value),
+    day: Number(parts.find((p) => p.type === 'day').value),
   };
 }
 
-/** Cantidad de días de un mes (month 1-12). */
+/** Año y mes calendario (1-12) en la zona del negocio. */
+export function localYearMonth(date = new Date()) {
+  const { year, month } = localDateParts(date);
+  return { year, month };
+}
+
+/**
+ * Mes comercial actual, identificado por el mes en que cierra (día 18).
+ * El 17 de agosto → cierra agosto (18 jul – 18 ago). El 19 de agosto → cierra septiembre.
+ */
+export function localBusinessYearMonth(date = new Date()) {
+  const { year, month, day } = localDateParts(date);
+  if (day <= BUSINESS_MONTH_DAY) return { year, month };
+  return addCalendarMonths(year, month, 1);
+}
+
+/** Cantidad de días de un mes calendario (month 1-12). */
 export function daysInMonth(year, month) {
   return new Date(Date.UTC(year, month, 0)).getUTCDate();
 }
 
-/** Todas las fechas YYYY-MM-DD de un mes, del día 1 al último. */
-export function allDatesInMonth(year, month) {
-  const totalDays = daysInMonth(year, month);
-  const monthStr = String(month).padStart(2, '0');
-  const dates = [];
-
-  for (let day = 1; day <= totalDays; day += 1) {
-    dates.push(`${year}-${monthStr}-${String(day).padStart(2, '0')}`);
-  }
-
-  return dates;
+/**
+ * Rango del mes comercial que cierra el 18 de `month`/`year`.
+ * Ejemplo: agosto 2026 → start 2026-07-18, end exclusivo 2026-08-19 (incluye el 18 ago).
+ */
+export function monthDateRange(year, month) {
+  const closing = { year: Number(year), month: Number(month) };
+  const prev = addCalendarMonths(closing.year, closing.month, -1);
+  const start = ymd(prev.year, prev.month, BUSINESS_MONTH_DAY);
+  const endInclusive = ymd(closing.year, closing.month, BUSINESS_MONTH_DAY);
+  return {
+    start,
+    end: addIsoDays(endInclusive, 1),
+    endInclusive,
+  };
 }
 
-/** Rango [start, end) YYYY-MM-DD de un mes comercial. */
-export function monthDateRange(year, month) {
-  const y = Number(year);
-  const m = Number(month);
-  const start = `${y}-${String(m).padStart(2, '0')}-01`;
-  const end = m === 12
-    ? `${y + 1}-01-01`
-    : `${y}-${String(m + 1).padStart(2, '0')}-01`;
-  return { start, end };
+/** Todas las fechas YYYY-MM-DD del mes comercial (18 al 18 inclusive). */
+export function allDatesInMonth(year, month) {
+  const { start, end } = monthDateRange(year, month);
+  const dates = [];
+  let cursor = start;
+  while (cursor < end) {
+    dates.push(cursor);
+    cursor = addIsoDays(cursor, 1);
+  }
+  return dates;
 }
 
 /** SQL: fecha Colombia desde created_at (timestamptz). */

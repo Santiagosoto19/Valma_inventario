@@ -1,4 +1,17 @@
 const DISPLAY_TIMEZONE = 'America/Bogota';
+const BUSINESS_MONTH_DAY = 18;
+
+function addCalendarMonths(year, month, delta) {
+  const total = Number(year) * 12 + (Number(month) - 1) + delta;
+  return {
+    year: Math.floor(total / 12),
+    month: (total % 12) + 1,
+  };
+}
+
+function pad2(n) {
+  return String(n).padStart(2, '0');
+}
 
 /** Fecha local YYYY-MM-DD (Colombia). */
 export function todayLocal() {
@@ -10,17 +23,43 @@ export function todayLocal() {
   }).format(new Date());
 }
 
-/** Año y mes (1-12) en Colombia. */
-export function localYearMonth(date = new Date()) {
+export function localDateParts(date = new Date()) {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: DISPLAY_TIMEZONE,
     year: 'numeric',
     month: 'numeric',
+    day: 'numeric',
   }).formatToParts(date);
 
   return {
     year: Number(parts.find((p) => p.type === 'year').value),
     month: Number(parts.find((p) => p.type === 'month').value),
+    day: Number(parts.find((p) => p.type === 'day').value),
+  };
+}
+
+/** Año y mes calendario (1-12) en Colombia. */
+export function localYearMonth(date = new Date()) {
+  const { year, month } = localDateParts(date);
+  return { year, month };
+}
+
+/**
+ * Mes comercial actual (cierra el día 18).
+ * El 17 de agosto → agosto (18 jul – 18 ago). El 19 de agosto → septiembre.
+ */
+export function localBusinessYearMonth(date = new Date()) {
+  const { year, month, day } = localDateParts(date);
+  if (day <= BUSINESS_MONTH_DAY) return { year, month };
+  return addCalendarMonths(year, month, 1);
+}
+
+/** Rango visible del mes comercial que cierra el 18 de `month`/`year`. */
+export function businessMonthRange(year, month) {
+  const prev = addCalendarMonths(year, month, -1);
+  return {
+    start: `${prev.year}-${pad2(prev.month)}-${pad2(BUSINESS_MONTH_DAY)}`,
+    end: `${year}-${pad2(month)}-${pad2(BUSINESS_MONTH_DAY)}`,
   };
 }
 

@@ -4,7 +4,7 @@ import {
   aggregateSalesSummary,
   allDatesInMonth,
   formatPgDate,
-  localYearMonth,
+  localBusinessYearMonth,
   monthDateRange,
   sqlSaleMatchesMonth,
   todayLocal,
@@ -21,10 +21,10 @@ export async function getDailyReport(date) {
 }
 
 export async function getMonthlyReport(year, month) {
-  const { year: localYear, month: localMonth } = localYearMonth();
+  const { year: localYear, month: localMonth } = localBusinessYearMonth();
   const targetYear = year || localYear;
   const targetMonth = month || localMonth;
-  const { start, end } = monthDateRange(targetYear, targetMonth);
+  const { start, end, endInclusive } = monthDateRange(targetYear, targetMonth);
 
   const { rows } = await queryWithTimeout(
     `SELECT
@@ -80,6 +80,8 @@ export async function getMonthlyReport(year, month) {
   const summary = {
     year: targetYear,
     month: targetMonth,
+    period_start: start,
+    period_end: endInclusive,
     cash: { total: 0, transactions: 0 },
     nequi: { total: 0, transactions: 0 },
     grand_total: 0,
@@ -101,7 +103,7 @@ export async function getMonthlyReport(year, month) {
 
 export async function getAccountingDashboard() {
   const today = todayLocal();
-  const { year, month } = localYearMonth();
+  const { year, month } = localBusinessYearMonth();
   const [daily, monthly] = await Promise.all([
     getDailyReport(today),
     getMonthlyReport(year, month),

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Banknote, Smartphone, TrendingUp, Calendar, ChevronRight, Receipt } from 'lucide-react';
 import { api, formatCurrency } from '../services/api';
-import { formatDisplayDate, formatLongDateSpanish, formatLocalDateTime, localYearMonth } from '../utils/dates';
+import { formatDisplayDate, formatLongDateSpanish, formatLocalDateTime, localBusinessYearMonth, businessMonthRange } from '../utils/dates';
 import MetricCard from '../components/ui/MetricCard';
 import Card from '../components/ui/Card';
 import SaleDetailModal from '../components/sales/SaleDetailModal';
@@ -14,7 +14,7 @@ const MONTHS = [
 const PAYMENT_ICON = { cash: Banknote, nequi: Smartphone };
 const PAYMENT_COLOR = { cash: 'text-emerald-700', nequi: 'text-indigo-700' };
 
-const { year: initialYear, month: initialMonth } = localYearMonth();
+const { year: initialYear, month: initialMonth } = localBusinessYearMonth();
 
 export default function AccountingPage() {
   const [data, setData] = useState(null);
@@ -75,6 +75,8 @@ export default function AccountingPage() {
 
   const { daily, monthly } = data || {};
   const currentMonthly = monthlyDetail || monthly;
+  const periodRange = businessMonthRange(selectedYear, selectedMonth);
+  const periodLabel = `${formatDisplayDate(periodRange.start)} — ${formatDisplayDate(periodRange.end)}`;
 
   const SalesList = ({ sales, title }) => (
     <div className="mt-4">
@@ -144,7 +146,14 @@ export default function AccountingPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
           <div className="flex items-center gap-2">
             <Calendar size={20} className="text-violet-500" strokeWidth={2} />
-            <h3 className="text-lg font-bold text-slate-700">{MONTHS[selectedMonth - 1]} {selectedYear}</h3>
+            <div>
+              <h3 className="text-lg font-bold text-slate-700">
+                Corte {MONTHS[selectedMonth - 1]} {selectedYear}
+              </h3>
+              <p className="text-sm text-slate-500 font-medium">
+                Del {periodLabel} (cierra el día 18)
+              </p>
+            </div>
           </div>
           <div className="flex gap-2">
             <select className="input-pastel w-auto text-sm font-semibold" value={selectedMonth} onChange={(e) => setSelectedMonth(Number(e.target.value))}>
@@ -222,7 +231,7 @@ export default function AccountingPage() {
           </Card>
         )}
 
-        <SalesList sales={monthlySales} title={`Ventas de ${MONTHS[selectedMonth - 1]}`} />
+        <SalesList sales={monthlySales} title={`Ventas del ${periodLabel}`} />
       </section>
 
       {selectedSaleId && (
