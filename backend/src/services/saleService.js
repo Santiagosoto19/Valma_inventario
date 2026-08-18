@@ -1,6 +1,12 @@
 import { queryWithTimeout, connectWithTimeout } from '../config/database.js';
 import { checkStockAlertsForProducts } from './productService.js';
-import { normalizeSaleRecord, sqlSaleMatchesDate, sqlSaleMatchesMonth, sqlTodayLocalDate } from '../utils/dates.js';
+import {
+  monthDateRange,
+  normalizeSaleRecord,
+  sqlSaleMatchesDate,
+  sqlSaleMatchesMonth,
+  sqlTodayLocalDate,
+} from '../utils/dates.js';
 
 function roundMoney(n) {
   return Math.round(Number(n) * 100) / 100;
@@ -169,17 +175,21 @@ export async function getSales({ date, month, year } = {}) {
   let query = 'SELECT * FROM sales';
   const params = [];
   const conditions = [];
+  let limit = 500;
 
   if (date) {
     params.push(date);
     conditions.push(sqlSaleMatchesDate(params.length));
+    limit = 2000;
   } else if (month && year) {
-    params.push(parseInt(year, 10), parseInt(month, 10));
+    const { start, end } = monthDateRange(year, month);
+    params.push(start, end);
     conditions.push(sqlSaleMatchesMonth(params.length - 1, params.length));
+    limit = 10000;
   }
 
   if (conditions.length) query += ' WHERE ' + conditions.join(' AND ');
-  query += ' ORDER BY created_at DESC LIMIT 500';
+  query += ` ORDER BY created_at DESC LIMIT ${limit}`;
 
   const { rows } = await queryWithTimeout(query, params);
   return rows.map(normalizeSaleRecord);

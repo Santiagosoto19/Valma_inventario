@@ -43,25 +43,30 @@ export function allDatesInMonth(year, month) {
   return dates;
 }
 
+/** Rango [start, end) YYYY-MM-DD de un mes comercial. */
+export function monthDateRange(year, month) {
+  const y = Number(year);
+  const m = Number(month);
+  const start = `${y}-${String(m).padStart(2, '0')}-01`;
+  const end = m === 12
+    ? `${y + 1}-01-01`
+    : `${y}-${String(m + 1).padStart(2, '0')}-01`;
+  return { start, end };
+}
+
 /** SQL: fecha Colombia desde created_at (timestamptz). */
 export function sqlCreatedAtLocalDate(column = 'created_at') {
   return `(${column} AT TIME ZONE '${BUSINESS_TIMEZONE}')::date`;
 }
 
-/** SQL: venta incluida en una fecha comercial (sale_date o created_at Colombia). */
+/** SQL: venta incluida en una fecha comercial (sale_date). */
 export function sqlSaleMatchesDate(paramIndex) {
-  const localDate = sqlCreatedAtLocalDate('created_at');
-  return `(sale_date = $${paramIndex}::date OR ${localDate} = $${paramIndex}::date)`;
+  return `sale_date = $${paramIndex}::date`;
 }
 
-/** SQL: venta incluida en un mes comercial. */
-export function sqlSaleMatchesMonth(yearIndex, monthIndex) {
-  const localDate = sqlCreatedAtLocalDate('created_at');
-  return `(
-    (EXTRACT(YEAR FROM sale_date) = $${yearIndex} AND EXTRACT(MONTH FROM sale_date) = $${monthIndex})
-    OR
-    (EXTRACT(YEAR FROM ${localDate}) = $${yearIndex} AND EXTRACT(MONTH FROM ${localDate}) = $${monthIndex})
-  )`;
+/** SQL: venta incluida en un mes comercial (sale_date). */
+export function sqlSaleMatchesMonth(startIndex, endIndex) {
+  return `(sale_date >= $${startIndex}::date AND sale_date < $${endIndex}::date)`;
 }
 
 /** SQL: fecha Colombia actual al insertar ventas. */
@@ -82,17 +87,14 @@ export function formatPgDate(value) {
   return String(value).slice(0, 10);
 }
 
-/** Fecha comercial de una venta (prioriza created_at en Colombia). */
+/** Fecha comercial de una venta (sale_date; si falta, created_at en Colombia). */
 export function businessDateFromSale(sale) {
+  const fromSaleDate = formatPgDate(sale?.sale_date);
+  if (fromSaleDate) return fromSaleDate;
   if (sale?.created_at) {
-    return new Intl.DateTimeFormat('en-CA', {
-      timeZone: BUSINESS_TIMEZONE,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }).format(new Date(sale.created_at));
+    return todayLocal(new Date(sale.created_at));
   }
-  return formatPgDate(sale?.sale_date);
+  return null;
 }
 
 export function normalizePaymentMethod(value) {

@@ -1,12 +1,18 @@
+import { queryWithTimeout } from '../config/database.js';
 import { getSales } from './saleService.js';
 import {
   aggregateSalesSummary,
   allDatesInMonth,
-  businessDateFromSale,
+  formatPgDate,
   localYearMonth,
-  normalizePaymentMethod,
+  monthDateRange,
+  sqlSaleMatchesMonth,
   todayLocal,
 } from '../utils/dates.js';
+
+function roundMoney(n) {
+  return Math.round((Number(n) || 0) * 100) / 100;
+}
 
 export async function getDailyReport(date) {
   const targetDate = date || todayLocal();
@@ -18,21 +24,43 @@ export async function getMonthlyReport(year, month) {
   const { year: localYear, month: localMonth } = localYearMonth();
   const targetYear = year || localYear;
   const targetMonth = month || localMonth;
+  const { start, end } = monthDateRange(targetYear, targetMonth);
 
-  const sales = await getSales({ month: targetMonth, year: targetYear });
-
-  const summary = aggregateSalesSummary(sales, {
-    year: targetYear,
-    month: targetMonth,
-    daily: {},
-  });
+  const { rows } = await queryWithTimeout(
+    `SELECT
+       to_char(sale_date, 'YYYY-MM-DD') AS date,
+       COALESCE(SUM(CASE WHEN payment_method::text IN ('cash', 'efectivo') THEN total ELSE 0 END), 0) AS cash,
+       COALESCE(SUM(CASE WHEN payment_method::text = 'nequi' THEN total ELSE 0 END), 0) AS nequi,
+       COALESCE(SUM(total), 0) AS total,
+       COUNT(*)::int AS transactions,
+       COUNT(*) FILTER (WHERE payment_method::text IN ('cash', 'efectivo'))::int AS cash_transactions,
+       COUNT(*) FILTER (WHERE payment_method::text = 'nequi')::int AS nequi_transactions
+     FROM sales
+     WHERE ${sqlSaleMatchesMonth(1, 2)}
+     GROUP BY sale_date
+     ORDER BY sale_date`,
+    [start, end]
+  );
 
   const dailyMap = {};
+  for (const row of rows) {
+    const dateKey = formatPgDate(row.date);
+    if (!dateKey) continue;
+    dailyMap[dateKey] = {
+      date: dateKey,
+      cash: roundMoney(row.cash),
+      nequi: roundMoney(row.nequi),
+      total: roundMoney(row.total),
+      transactions: Number(row.transactions) || 0,
+      cashTransactions: Number(row.cash_transactions) || 0,
+      nequiTransactions: Number(row.nequi_transactions) || 0,
+    };
+  }
 
-  for (const sale of sales) {
-    const dateKey = businessDateFromSale(sale);
-    if (!dailyMap[dateKey]) {
-      dailyMap[dateKey] = {
+  const daily = allDatesInMonth(targetYear, targetMonth).map((dateKey) => {
+    const day = dailyMap[dateKey];
+    if (!day) {
+      return {
         date: dateKey,
         cash: 0,
         nequi: 0,
@@ -40,30 +68,33 @@ export async function getMonthlyReport(year, month) {
         transactions: 0,
       };
     }
-
-    const amount = Number(sale.total) || 0;
-    const method = normalizePaymentMethod(sale.payment_method);
-    if (method === 'cash') dailyMap[dateKey].cash += amount;
-    else if (method === 'nequi') dailyMap[dateKey].nequi += amount;
-    dailyMap[dateKey].total += amount;
-    dailyMap[dateKey].transactions += 1;
-  }
-
-  summary.daily = allDatesInMonth(targetYear, targetMonth).map((dateKey) => {
-    const day = dailyMap[dateKey] || {
-      date: dateKey,
-      cash: 0,
-      nequi: 0,
-      total: 0,
-      transactions: 0,
-    };
     return {
-      ...day,
-      cash: Math.round(day.cash * 100) / 100,
-      nequi: Math.round(day.nequi * 100) / 100,
-      total: Math.round(day.total * 100) / 100,
+      date: day.date,
+      cash: day.cash,
+      nequi: day.nequi,
+      total: day.total,
+      transactions: day.transactions,
     };
   });
+
+  const summary = {
+    year: targetYear,
+    month: targetMonth,
+    cash: { total: 0, transactions: 0 },
+    nequi: { total: 0, transactions: 0 },
+    grand_total: 0,
+    total_transactions: 0,
+    daily,
+  };
+
+  for (const day of Object.values(dailyMap)) {
+    summary.cash.total = roundMoney(summary.cash.total + day.cash);
+    summary.nequi.total = roundMoney(summary.nequi.total + day.nequi);
+    summary.grand_total = roundMoney(summary.grand_total + day.total);
+    summary.cash.transactions += day.cashTransactions;
+    summary.nequi.transactions += day.nequiTransactions;
+    summary.total_transactions += day.transactions;
+  }
 
   return summary;
 }
