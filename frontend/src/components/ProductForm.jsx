@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Upload, Link2 } from 'lucide-react';
+import { Upload, Link2, ScanLine } from 'lucide-react';
 import { api } from '../services/api';
 import Modal from './ui/Modal';
 import Button from './ui/Button';
@@ -15,6 +15,7 @@ export default function ProductForm({ product, onClose, onSuccess }) {
     description: product?.description || '',
     stock: product?.stock ?? 0,
     price: product?.price ?? '',
+    barcode: product?.barcode || '',
     image_url: product?.image_url || '',
   });
   const [imageFile, setImageFile] = useState(null);
@@ -45,6 +46,8 @@ export default function ProductForm({ product, onClose, onSuccess }) {
       formData.append('description', form.description);
       formData.append('stock', form.stock);
       formData.append('price', form.price);
+      if (product) formData.append('barcode', form.barcode.trim());
+      else if (form.barcode.trim()) formData.append('barcode', form.barcode.trim());
       if (imageFile) formData.append('image', imageFile);
       else if (useUrl && form.image_url) formData.append('image_url', form.image_url);
 
@@ -82,7 +85,22 @@ export default function ProductForm({ product, onClose, onSuccess }) {
           </div>
         </div>
         <div>
-          <label className="label-pastel">Imagen (se guarda en Cloudinary)</label>
+          <label className="label-pastel flex items-center gap-1.5">
+            <ScanLine size={14} />
+            Código de barras
+          </label>
+          <input
+            className="input-pastel font-mono"
+            name="barcode"
+            value={form.barcode}
+            onChange={handleChange}
+            placeholder="Escanea o escribe el código"
+            autoComplete="off"
+          />
+          <p className="text-xs text-slate-400 mt-1">Opcional. Escanea con lector o celular al crear el producto.</p>
+        </div>
+        <div>
+          <label className="label-pastel">Imagen</label>
           <div className="flex gap-3 mb-3">
             <button type="button" onClick={() => setUseUrl(false)}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold ${!useUrl ? 'bg-pink-100 text-pink-700' : 'bg-slate-100 text-slate-600'}`}>

@@ -162,7 +162,7 @@ export default function AccountingPage() {
           <MetricCard title="Total del mes" amount={currentMonthly?.grand_total ?? 0} transactions={currentMonthly?.total_transactions ?? 0} icon={TrendingUp} variant="total" />
         </div>
 
-        {monthlyDetail?.daily?.length > 0 && (
+        {monthlyDetail?.daily && (
           <Card className="overflow-hidden mb-4">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -176,16 +176,47 @@ export default function AccountingPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {monthlyDetail.daily.map((day) => (
-                    <tr key={day.date} className="border-b border-pastel-lavender/10 hover:bg-pink-50/30">
-                      <td className="px-4 py-3 font-medium">{formatDisplayDate(day.date)}</td>
-                      <td className="px-4 py-3 text-right text-emerald-700 font-semibold">{formatCurrency(day.cash)}</td>
-                      <td className="px-4 py-3 text-right text-indigo-700 font-semibold">{formatCurrency(day.nequi)}</td>
-                      <td className="px-4 py-3 text-right font-bold">{formatCurrency(day.total)}</td>
-                      <td className="px-4 py-3 text-right text-slate-500">{day.transactions}</td>
-                    </tr>
-                  ))}
+                  {monthlyDetail.daily.map((day) => {
+                    const noSales = day.transactions === 0;
+                    return (
+                      <tr
+                        key={day.date}
+                        className={`border-b border-pastel-lavender/10 ${
+                          noSales ? 'text-slate-400' : 'hover:bg-pink-50/30'
+                        }`}
+                      >
+                        <td className="px-4 py-3 font-medium">{formatDisplayDate(day.date)}</td>
+                        <td className="px-4 py-3 text-right font-semibold">
+                          {formatCurrency(day.cash)}
+                        </td>
+                        <td className="px-4 py-3 text-right font-semibold">
+                          {formatCurrency(day.nequi)}
+                        </td>
+                        <td className={`px-4 py-3 text-right font-bold ${noSales ? '' : 'text-slate-800'}`}>
+                          {formatCurrency(day.total)}
+                        </td>
+                        <td className="px-4 py-3 text-right">{day.transactions}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
+                <tfoot>
+                  <tr className="bg-pastel-lavender/10 border-t border-pastel-lavender/30 font-bold">
+                    <td className="px-4 py-3 text-slate-700">Total del mes</td>
+                    <td className="px-4 py-3 text-right text-emerald-700">
+                      {formatCurrency(currentMonthly?.cash?.total ?? 0)}
+                    </td>
+                    <td className="px-4 py-3 text-right text-indigo-700">
+                      {formatCurrency(currentMonthly?.nequi?.total ?? 0)}
+                    </td>
+                    <td className="px-4 py-3 text-right text-slate-800">
+                      {formatCurrency(currentMonthly?.grand_total ?? 0)}
+                    </td>
+                    <td className="px-4 py-3 text-right text-slate-500">
+                      {currentMonthly?.total_transactions ?? 0}
+                    </td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
           </Card>

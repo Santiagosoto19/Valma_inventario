@@ -1,6 +1,7 @@
 import {
   getAllProducts,
   getProductById,
+  getProductByBarcode,
   getServiceProducts,
   createProduct,
   updateProduct,
@@ -15,6 +16,18 @@ async function resolveImageUrl(req) {
     return uploadProductImage(req.file);
   }
   return req.body.image_url || null;
+}
+
+export async function getByBarcode(req, res) {
+  try {
+    const product = await getProductByBarcode(req.params.code);
+    if (!product) {
+      return res.status(404).json({ error: 'Producto no encontrado con ese código' });
+    }
+    res.json(product);
+  } catch (error) {
+    res.status(httpStatusFromError(error)).json({ error: error.message });
+  }
 }
 
 export async function listServiceProducts(req, res) {
@@ -51,7 +64,7 @@ export async function getProduct(req, res) {
 
 export async function addProduct(req, res) {
   try {
-    const { name, description, stock, price } = req.body;
+    const { name, description, stock, price, barcode } = req.body;
     if (!name?.trim()) {
       return res.status(400).json({ error: 'El nombre es obligatorio' });
     }
@@ -67,10 +80,14 @@ export async function addProduct(req, res) {
       image_url,
       stock: parseInt(stock, 10) || 0,
       price: parseFloat(price),
+      barcode: barcode?.trim() || null,
     });
 
     res.status(201).json(product);
   } catch (error) {
+    if (error.code === '23505') {
+      return res.status(400).json({ error: 'Ese código de barras ya está registrado en otro producto' });
+    }
     res.status(httpStatusFromError(error)).json({ error: error.message });
   }
 }
@@ -80,13 +97,14 @@ export async function editProduct(req, res) {
     const existing = await getProductById(req.params.id);
     if (!existing) return res.status(404).json({ error: 'Producto no encontrado' });
 
-    const { name, description, stock, price, image_url } = req.body;
+    const { name, description, stock, price, image_url, barcode } = req.body;
     const updates = {};
 
     if (name !== undefined) updates.name = name.trim();
     if (description !== undefined) updates.description = description.trim();
     if (stock !== undefined) updates.stock = parseInt(stock, 10);
     if (price !== undefined) updates.price = parseFloat(price);
+    if (barcode !== undefined) updates.barcode = barcode?.trim() || null;
 
     if (req.file) {
       updates.image_url = await uploadProductImage(req.file);
@@ -100,6 +118,9 @@ export async function editProduct(req, res) {
     const product = await updateProduct(req.params.id, updates);
     res.json(product);
   } catch (error) {
+    if (error.code === '23505') {
+      return res.status(400).json({ error: 'Ese código de barras ya está registrado en otro producto' });
+    }
     res.status(httpStatusFromError(error)).json({ error: error.message });
   }
 }

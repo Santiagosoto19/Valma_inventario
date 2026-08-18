@@ -1,6 +1,7 @@
 import { getSales } from './saleService.js';
 import {
   aggregateSalesSummary,
+  allDatesInMonth,
   businessDateFromSale,
   localYearMonth,
   normalizePaymentMethod,
@@ -48,14 +49,21 @@ export async function getMonthlyReport(year, month) {
     dailyMap[dateKey].transactions += 1;
   }
 
-  summary.daily = Object.values(dailyMap)
-    .map((day) => ({
+  summary.daily = allDatesInMonth(targetYear, targetMonth).map((dateKey) => {
+    const day = dailyMap[dateKey] || {
+      date: dateKey,
+      cash: 0,
+      nequi: 0,
+      total: 0,
+      transactions: 0,
+    };
+    return {
       ...day,
       cash: Math.round(day.cash * 100) / 100,
       nequi: Math.round(day.nequi * 100) / 100,
       total: Math.round(day.total * 100) / 100,
-    }))
-    .sort((a, b) => a.date.localeCompare(b.date));
+    };
+  });
 
   return summary;
 }

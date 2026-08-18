@@ -92,6 +92,8 @@ export const api = {
   },
   products: {
     list: () => request('/api/products'),
+    byBarcode: (code) =>
+      request(`/api/products/by-barcode/${encodeURIComponent(code)}`),
     services: (group) => request(`/api/products/services/${group}`),
     get: (id) => request(`/api/products/${id}`),
     create: (formData) =>

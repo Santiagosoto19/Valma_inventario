@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
   Search, ShoppingCart, Package, Plus, Minus, X,
-  Banknote, Smartphone, CreditCard, Tag, Percent, Loader2,
+  Banknote, Smartphone, CreditCard, Tag, Percent, Loader2, ScanLine,
 } from 'lucide-react';
 import { api, formatCurrency, formatApiError } from '../services/api';
 import ProductImage from '../components/ui/ProductImage';
@@ -15,9 +15,37 @@ function lineSubtotal(item) {
   return Number(item.product.price) * item.quantity;
 }
 
-function ProductGrid({ search, onSearchChange, filteredProducts, onAddToCart }) {
+const SCAN_AUTO_SUBMIT_MS = 120;
+
+function ProductGrid({
+  search,
+  onSearchChange,
+  filteredProducts,
+  onAddToCart,
+  scanCode,
+  onScanInputChange,
+  onScanKeyDown,
+  scanInputRef,
+  scanning,
+}) {
   return (
     <div className="space-y-4">
+      <div className="relative">
+        <ScanLine size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-pink-500" />
+        <input
+          ref={scanInputRef}
+          className="input-pastel pl-11 font-mono text-base ring-2 ring-pink-200 focus:ring-pink-400"
+          placeholder="Escanea aquí — se agrega solo al carrito"
+          value={scanCode}
+          onChange={(e) => onScanInputChange(e.target.value)}
+          onKeyDown={onScanKeyDown}
+          autoComplete="off"
+          disabled={scanning}
+        />
+      </div>
+      <p className="text-xs text-slate-500 font-medium -mt-2 px-1">
+        Cada escaneo suma 1 unidad. Escanea el mismo producto varias veces para vender varias unidades.
+      </p>
       <div className="relative">
         <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
         <input
@@ -196,15 +224,32 @@ export default function POSPage() {
   const [processing, setProcessing] = useState(false);
   const [completedSale, setCompletedSale] = useState(null);
   const [search, setSearch] = useState('');
+  const [scanCode, setScanCode] = useState('');
+  const [scanning, setScanning] = useState(false);
   const [mobileTab, setMobileTab] = useState('products');
+  const scanInputRef = useRef(null);
+  const barcodeCacheRef = useRef(new Map());
+  const scanBufferRef = useRef('');
+  const scanDebounceRef = useRef(null);
   const { addNotification } = useNotifications();
   const isMobile = useIsMobile();
 
   useEffect(() => { loadProducts(); }, []);
 
+  useEffect(() => () => {
+    if (scanDebounceRef.current) clearTimeout(scanDebounceRef.current);
+  }, []);
+
+  useEffect(() => {
+    if (!loading && mobileTab === 'products' && !processing && !completedSale) {
+      scanInputRef.current?.focus();
+    }
+  }, [loading, mobileTab, processing, completedSale]);
+
   async function loadProducts() {
     try {
       setLoading(true);
+      barcodeCacheRef.current.clear();
       const data = await api.products.list();
       setProducts(data.filter((p) => p.stock > 0));
     } catch (err) {
@@ -215,7 +260,8 @@ export default function POSPage() {
   }
 
   const filteredProducts = products.filter((p) =>
-    p.name.toLowerCase().includes(search.toLowerCase())
+    p.name.toLowerCase().includes(search.toLowerCase()) ||
+    p.barcode?.toLowerCase().includes(search.toLowerCase())
   );
 
   const cartSubtotal = cart.reduce((sum, item) => sum + lineSubtotal(item), 0);
@@ -224,7 +270,7 @@ export default function POSPage() {
   const cartTotal = Math.max(0, afterItemDiscounts - (Number(globalDiscount) || 0));
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-  function addToCart(product) {
+  function addToCart(product, { fromScan = false } = {}) {
     setCart((prev) => {
       const existing = prev.find((i) => i.product.id === product.id);
       if (existing) {
@@ -232,7 +278,7 @@ export default function POSPage() {
           addNotification({
             type: 'warning',
             title: 'Stock insuficiente',
-            message: `Stock máximo disponible: ${product.stock} unidades`,
+            message: `Solo quedan ${product.stock} unidades de "${product.name}"`,
           });
           return prev;
         }
@@ -242,7 +288,77 @@ export default function POSPage() {
       }
       return [...prev, { product, quantity: 1, discount: 0 }];
     });
-    if (isMobile) setMobileTab('cart');
+    if (isMobile && !fromScan) setMobileTab('cart');
+  }
+
+  async function processBarcodeScan(rawCode) {
+    const trimmed = String(rawCode || '').replace(/[\r\n\t]/g, '').trim();
+    if (!trimmed || scanning) return;
+
+    if (scanDebounceRef.current) {
+      clearTimeout(scanDebounceRef.current);
+      scanDebounceRef.current = null;
+    }
+
+    scanBufferRef.current = '';
+    setScanCode('');
+    setScanning(true);
+
+    try {
+      let product = barcodeCacheRef.current.get(trimmed);
+      if (!product) {
+        product = await api.products.byBarcode(trimmed);
+        barcodeCacheRef.current.set(trimmed, product);
+      }
+
+      if (product.stock <= 0) {
+        addNotification({
+          type: 'warning',
+          title: 'Sin stock',
+          message: `"${product.name}" está agotado`,
+        });
+        return;
+      }
+
+      addToCart(product, { fromScan: true });
+    } catch {
+      addNotification({
+        type: 'error',
+        title: 'Código no encontrado',
+        message: `"${trimmed}" no está registrado. Agrégalo en Inventario con ese código.`,
+      });
+    } finally {
+      setScanning(false);
+      requestAnimationFrame(() => scanInputRef.current?.focus());
+    }
+  }
+
+  function scheduleAutoScan(value) {
+    if (scanDebounceRef.current) clearTimeout(scanDebounceRef.current);
+    const trimmed = value.trim();
+    if (!trimmed) return;
+
+    scanDebounceRef.current = setTimeout(() => {
+      scanDebounceRef.current = null;
+      processBarcodeScan(scanBufferRef.current);
+    }, SCAN_AUTO_SUBMIT_MS);
+  }
+
+  function handleScanInputChange(value) {
+    scanBufferRef.current = value;
+    setScanCode(value);
+    scheduleAutoScan(value);
+  }
+
+  function handleScanKeyDown(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (scanDebounceRef.current) {
+        clearTimeout(scanDebounceRef.current);
+        scanDebounceRef.current = null;
+      }
+      processBarcodeScan(scanBufferRef.current);
+    }
   }
 
   function updateQuantity(productId, delta) {
@@ -361,6 +477,11 @@ export default function POSPage() {
             onSearchChange={setSearch}
             filteredProducts={filteredProducts}
             onAddToCart={addToCart}
+            scanCode={scanCode}
+            onScanInputChange={handleScanInputChange}
+            onScanKeyDown={handleScanKeyDown}
+            scanInputRef={scanInputRef}
+            scanning={scanning}
           />
         ) : (
           <Card className="p-4">
@@ -392,6 +513,11 @@ export default function POSPage() {
             onSearchChange={setSearch}
             filteredProducts={filteredProducts}
             onAddToCart={addToCart}
+            scanCode={scanCode}
+            onScanInputChange={handleScanInputChange}
+            onScanKeyDown={handleScanKeyDown}
+            scanInputRef={scanInputRef}
+            scanning={scanning}
           />
         </div>
         <Card className="p-5 sticky top-4 h-fit">

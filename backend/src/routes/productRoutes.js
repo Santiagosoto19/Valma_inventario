@@ -3,6 +3,7 @@ import {
   listProducts,
   listServiceProducts,
   getProduct,
+  getByBarcode,
   addProduct,
   editProduct,
   removeProduct,
@@ -13,6 +14,7 @@ import { upload } from '../middleware/upload.js';
 const router = Router();
 
 router.get('/', listProducts);
+router.get('/by-barcode/:code', getByBarcode);
 router.get('/services/:group', listServiceProducts);
 router.get('/low-stock', listLowStock);
 router.get('/:id', getProduct);

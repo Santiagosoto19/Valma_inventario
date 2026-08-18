@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS products (
     image_url       TEXT,
     stock           INTEGER NOT NULL DEFAULT 0 CHECK (stock >= 0),
     price           DECIMAL(12, 2) NOT NULL CHECK (price >= 0),
+    barcode         VARCHAR(50),
     service_key     VARCHAR(50) UNIQUE,
     service_group   VARCHAR(20),
     track_stock     BOOLEAN NOT NULL DEFAULT true,
@@ -29,6 +30,11 @@ CREATE TABLE IF NOT EXISTS products (
     updated_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS idx_products_barcode_unique
+  ON products (barcode)
+  WHERE barcode IS NOT NULL AND barcode <> '';
+
+CREATE INDEX IF NOT EXISTS idx_products_barcode_lookup ON products (barcode);
 CREATE INDEX IF NOT EXISTS idx_products_service_group ON products(service_group);
 
 INSERT INTO products (name, description, stock, price, service_key, service_group, track_stock)

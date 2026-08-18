@@ -24,7 +24,8 @@ export function filterProducts(products, { search, stockFilter, sortBy, threshol
     list = list.filter(
       (p) =>
         p.name.toLowerCase().includes(query) ||
-        p.description?.toLowerCase().includes(query)
+        p.description?.toLowerCase().includes(query) ||
+        p.barcode?.toLowerCase().includes(query)
     );
   }
 

@@ -25,6 +25,24 @@ export function localYearMonth(date = new Date()) {
   };
 }
 
+/** Cantidad de días de un mes (month 1-12). */
+export function daysInMonth(year, month) {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+/** Todas las fechas YYYY-MM-DD de un mes, del día 1 al último. */
+export function allDatesInMonth(year, month) {
+  const totalDays = daysInMonth(year, month);
+  const monthStr = String(month).padStart(2, '0');
+  const dates = [];
+
+  for (let day = 1; day <= totalDays; day += 1) {
+    dates.push(`${year}-${monthStr}-${String(day).padStart(2, '0')}`);
+  }
+
+  return dates;
+}
+
 /** SQL: fecha Colombia desde created_at (timestamptz). */
 export function sqlCreatedAtLocalDate(column = 'created_at') {
   return `(${column} AT TIME ZONE '${BUSINESS_TIMEZONE}')::date`;

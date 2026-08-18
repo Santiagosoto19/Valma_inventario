@@ -25,6 +25,9 @@ async function migrate() {
       console.log('Aplicando migración v4 (fecha ventas Colombia)...');
       await client.query(readSql('migration_v4_sale_date_tz.sql'));
       console.log('✓ Migración v4 aplicada (sale_date en America/Bogota)');
+      console.log('Aplicando migración v5 (códigos de barras)...');
+      await client.query(readSql('migration_v5_barcode.sql'));
+      console.log('✓ Migración v5 aplicada (barcode en productos)');
     }
 
     console.log('Base de datos lista.');
