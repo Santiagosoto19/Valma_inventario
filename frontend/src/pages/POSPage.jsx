@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { api, formatCurrency, formatApiError } from '../services/api';
 import { isNetworkError } from '../utils/errors';
-import { isCompleteBarcode, looksLikeBarcode, normalizeScanPayload } from '../utils/barcode';
+import { isCompleteBarcode, normalizeScanPayload } from '../utils/barcode';
 import ProductImage from '../components/ui/ProductImage';
 import { useNotifications } from '../context/NotificationContext';
 import { useOffline } from '../context/OfflineContext';
@@ -41,17 +41,21 @@ function ProductGrid({
   search,
   onSearchChange,
   onSearchKeyDown,
+  scanCode,
+  onScanCodeChange,
+  onScanKeyDown,
   filteredProducts,
   highlightedIndex,
   onAddToCart,
   searchInputRef,
+  scanInputRef,
   lastScanned,
   scanTrace,
   scannerConnected,
   scannerName,
 }) {
   return (
-    <div className="space-y-4" onPointerDown={() => searchInputRef.current?.focus()}>
+    <div className="space-y-4">
       <div className="flex items-center gap-2 px-1 flex-wrap">
         <span className={`inline-flex items-center gap-1.5 text-xs font-bold rounded-full px-3 py-1 border ${
           scannerConnected
@@ -69,35 +73,57 @@ function ProductGrid({
           </span>
         )}
       </div>
-      {!scanTrace?.focused && !scanTrace?.keyCount && (
-        <p className="text-sm font-semibold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-          Haz clic en esta ventana (en el campo de búsqueda) y vuelve a escanear. El lector solo escribe donde hay foco.
-        </p>
-      )}
-      <div className="relative">
-        <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-pink-500" />
-        <ScanLine size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" />
-        <input
-          ref={searchInputRef}
-          className="input-pastel pl-11 pr-11 text-base ring-2 ring-pink-200 focus:ring-pink-400"
-          placeholder="Haz clic aquí y escanea"
-          value={search}
-          onChange={(e) => onSearchChange(e.target.value)}
-          onKeyDown={onSearchKeyDown}
-          autoComplete="off"
-          data-pos-scan="true"
-        />
+      <div className="grid sm:grid-cols-2 gap-3">
+        <div>
+          <label className="label-pastel flex items-center gap-1.5 px-1">
+            <ScanLine size={14} />
+            Lector
+          </label>
+          <div className="relative">
+            <ScanLine size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-600" />
+            <input
+              ref={scanInputRef}
+              className="input-pastel pl-11 font-mono text-base ring-2 ring-emerald-200 focus:ring-emerald-400"
+              placeholder="Clic aquí y escanea"
+              value={scanCode}
+              onChange={(e) => onScanCodeChange(e.target.value)}
+              onKeyDown={onScanKeyDown}
+              autoComplete="off"
+              inputMode="numeric"
+              data-pos-scan="true"
+            />
+          </div>
+          <p className="text-[11px] font-mono text-slate-400 mt-1 px-1">
+            {scanTrace?.buffer
+              ? `Escaneando: ${scanTrace.buffer}`
+              : scanTrace?.keyCount
+                ? `Teclas: ${scanTrace.keyCount}${scanTrace.lastCode ? ` · ${scanTrace.lastCode}` : ''}`
+                : 'El cursor vuelve solo aquí'}
+          </p>
+        </div>
+        <div>
+          <label className="label-pastel flex items-center gap-1.5 px-1">
+            <Search size={14} />
+            Búsqueda
+          </label>
+          <div className="relative">
+            <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-pink-500" />
+            <input
+              ref={searchInputRef}
+              className="input-pastel pl-11 text-base ring-2 ring-pink-200 focus:ring-pink-400"
+              placeholder="Nombre del producto — Enter agrega"
+              value={search}
+              onChange={(e) => onSearchChange(e.target.value)}
+              onKeyDown={onSearchKeyDown}
+              autoComplete="off"
+              data-no-scan="true"
+            />
+          </div>
+          <p className="text-[11px] text-slate-400 mt-1 px-1">
+            Tócala solo cuando quieras escribir un nombre.
+          </p>
+        </div>
       </div>
-      <p className="text-xs text-slate-500 font-medium -mt-2 px-1">
-        Busca o escanea aquí. Las rebajas y el dinero recibido se escriben en el carrito, aparte del lector.
-      </p>
-      <p className="text-[11px] font-mono text-slate-400 -mt-2 px-1">
-        {scanTrace?.buffer
-          ? `Escaneando: ${scanTrace.buffer}`
-          : scanTrace?.keyCount
-            ? `Teclas recibidas: ${scanTrace.keyCount}${scanTrace.lastCode ? ` · ${scanTrace.lastCode}` : scanTrace.lastKey ? ` · ${scanTrace.lastKey}` : ''}`
-            : 'Esperando teclas del lector… haz clic aquí y escanea'}
-      </p>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
         {filteredProducts.map((product, index) => {
           const highlighted = index === highlightedIndex;
@@ -338,10 +364,12 @@ export default function POSPage() {
   const [processing, setProcessing] = useState(false);
   const [completedSale, setCompletedSale] = useState(null);
   const [search, setSearch] = useState('');
+  const [scanCode, setScanCode] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(0);
   const [scanning, setScanning] = useState(false);
   const [mobileTab, setMobileTab] = useState('products');
   const searchInputRef = useRef(null);
+  const scanInputRef = useRef(null);
   const barcodeCacheRef = useRef(new Map());
   const searchBufferRef = useRef('');
   const scanDebounceRef = useRef(null);
@@ -389,10 +417,37 @@ export default function POSPage() {
   }, []);
 
   useEffect(() => {
-    if (!loading && mobileTab === 'products' && !processing && !completedSale) {
-      searchInputRef.current?.focus();
+    if (loading || processing || completedSale) return undefined;
+    if (isMobile && mobileTab === 'cart') return undefined;
+
+    function canTakeScanFocus() {
+      const active = document.activeElement;
+      if (active?.closest?.('[data-no-scan="true"]')) return false;
+      if (active?.closest?.('[data-dialog="true"]')) return false;
+      return true;
     }
-  }, [loading, mobileTab, processing, completedSale]);
+
+    function focusScanner() {
+      if (!canTakeScanFocus()) return;
+      const field = scanInputRef.current;
+      if (field && document.activeElement !== field) {
+        field.focus({ preventScroll: true });
+      }
+    }
+
+    focusScanner();
+    const timer = setInterval(focusScanner, 350);
+    function onPointerUp(event) {
+      if (event.target?.closest?.('[data-no-scan="true"]')) return;
+      if (event.target?.closest?.('[data-dialog="true"]')) return;
+      requestAnimationFrame(focusScanner);
+    }
+    document.addEventListener('pointerup', onPointerUp);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('pointerup', onPointerUp);
+    };
+  }, [loading, processing, completedSale, mobileTab, isMobile]);
 
   useEffect(() => {
     const cards = document.querySelectorAll(`[data-pos-product-index="${highlightedIndex}"]`);
@@ -477,7 +532,11 @@ export default function POSPage() {
   function addFromSearch(product) {
     addToCart(product, { fromSearch: true });
     clearSearch();
-    requestAnimationFrame(() => searchInputRef.current?.focus());
+    requestAnimationFrame(() => scanInputRef.current?.focus());
+  }
+
+  function clearScanCode() {
+    setScanCode('');
   }
 
   async function processBarcodeScan(rawCode) {
@@ -490,7 +549,7 @@ export default function POSPage() {
       scanDebounceRef.current = null;
     }
 
-    clearSearch();
+    clearScanCode();
     setScanning(true);
 
     try {
@@ -537,7 +596,7 @@ export default function POSPage() {
     } finally {
       setScanning(false);
       scanLockRef.current = false;
-      requestAnimationFrame(() => searchInputRef.current?.focus());
+      requestAnimationFrame(() => scanInputRef.current?.focus());
     }
   }
 
@@ -549,17 +608,36 @@ export default function POSPage() {
 
     scanDebounceRef.current = setTimeout(() => {
       scanDebounceRef.current = null;
-      processBarcodeScan(searchBufferRef.current);
+      processBarcodeScan(value);
     }, SCAN_AUTO_SUBMIT_MS);
+  }
+
+  function handleScanCodeChange(value) {
+    setScanCode(value);
+    if (isCompleteBarcode(value)) {
+      scheduleAutoScan(value);
+    } else if (scanDebounceRef.current) {
+      clearTimeout(scanDebounceRef.current);
+      scanDebounceRef.current = null;
+    }
+  }
+
+  function handleScanKeyDown(e) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    if (scanDebounceRef.current) {
+      clearTimeout(scanDebounceRef.current);
+      scanDebounceRef.current = null;
+    }
+    const fromDom = scanInputRef.current?.value || scanCode;
+    if (fromDom.trim()) processBarcodeScan(fromDom);
   }
 
   function handleSearchChange(value) {
     searchBufferRef.current = value;
     setSearch(value);
     updateHighlight(0);
-    if (isCompleteBarcode(value)) {
-      scheduleAutoScan(value);
-    } else if (scanDebounceRef.current) {
+    if (scanDebounceRef.current) {
       clearTimeout(scanDebounceRef.current);
       scanDebounceRef.current = null;
     }
@@ -603,10 +681,6 @@ export default function POSPage() {
     }
 
     const matches = filterProducts(products, query);
-    if (looksLikeBarcode(query)) {
-      await processBarcodeScan(query);
-      return;
-    }
     if (matches.length === 0) {
       addNotification({
         type: 'error',
@@ -769,10 +843,14 @@ export default function POSPage() {
             search={search}
             onSearchChange={handleSearchChange}
             onSearchKeyDown={handleSearchKeyDown}
+            scanCode={scanCode}
+            onScanCodeChange={handleScanCodeChange}
+            onScanKeyDown={handleScanKeyDown}
             filteredProducts={filteredProducts}
             highlightedIndex={highlightedIndex}
             onAddToCart={addToCart}
             searchInputRef={searchInputRef}
+            scanInputRef={scanInputRef}
             lastScanned={lastScanned}
             scanTrace={scanTrace}
             scannerConnected={scannerConnected}

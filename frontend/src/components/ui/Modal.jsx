@@ -12,6 +12,7 @@ export default function Modal({ open, onClose, title, children, size = 'md' }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in"
+      data-dialog="true"
       onClick={onClose}
     >
       <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm" />
