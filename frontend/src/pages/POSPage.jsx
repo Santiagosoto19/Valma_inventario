@@ -89,7 +89,7 @@ function ProductGrid({
         />
       </div>
       <p className="text-xs text-slate-500 font-medium -mt-2 px-1">
-        Escribe el nombre y pulsa Enter. El lector agrega al carrito aunque el cursor esté en otro campo.
+        Busca o escanea aquí. Las rebajas y el dinero recibido se escriben en el carrito, aparte del lector.
       </p>
       <p className="text-[11px] font-mono text-slate-400 -mt-2 px-1">
         {scanTrace?.buffer
@@ -204,6 +204,7 @@ function CartPanel({
                   value={item.discount || ''}
                   onChange={(e) => onUpdateItemDiscount(item.product.id, e.target.value)}
                   className="input-pastel py-1.5 text-xs flex-1"
+                  data-no-scan="true"
                 />
               </div>
             </div>
@@ -233,6 +234,7 @@ function CartPanel({
               value={globalDiscount || ''}
               onChange={(e) => onGlobalDiscountChange(e.target.value)}
               className="input-pastel py-1.5 text-xs flex-1"
+              data-no-scan="true"
             />
           </div>
           {globalDiscount > 0 && (
@@ -280,6 +282,7 @@ function CartPanel({
               value={amountReceived}
               onChange={(e) => onAmountReceivedChange(e.target.value)}
               className="input-pastel text-base font-bold"
+              data-no-scan="true"
             />
             <div className="flex flex-wrap gap-1.5">
               <button

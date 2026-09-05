@@ -10,7 +10,19 @@ import {
 
 const RESET_MS = 1200;
 const AUTO_SUBMIT_MS = 280;
-const FAST_GAP_MS = 250;
+const FAST_GAP_MS = 80;
+
+function isScanField(el) {
+  return el?.dataset?.posScan === 'true' || el?.dataset?.barcodeScan === 'true';
+}
+
+function isManualField(el) {
+  if (!el) return false;
+  if (el.dataset?.noScan === 'true') return true;
+  const tag = el.tagName;
+  if (tag !== 'INPUT' && tag !== 'TEXTAREA') return false;
+  return !isScanField(el);
+}
 
 export function useHidScanner(onScan, enabled = true, onDebug) {
   const onScanRef = useRef(onScan);
@@ -43,6 +55,7 @@ export function useHidScanner(onScan, enabled = true, onDebug) {
 
     function reset() {
       buffer = '';
+      lastAt = 0;
       clearAuto();
       debug({ lastKey: '', lastCode: '' });
     }
@@ -75,13 +88,12 @@ export function useHidScanner(onScan, enabled = true, onDebug) {
 
     function stealFromField(event) {
       const target = event.target;
-      const isScanField =
-        target?.dataset?.posScan === 'true' || target?.dataset?.barcodeScan === 'true';
+      if (isManualField(target)) return false;
       const inField = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA';
       const fast = lastAt && performance.now() - lastAt < FAST_GAP_MS;
-      if (buffer.length >= 3 && (fast || looksLikeBarcode(buffer))) {
+      if (buffer.length >= 3 && (fast || isCompleteBarcode(buffer))) {
         event.preventDefault();
-        if (!isScanField && inField) event.stopPropagation();
+        if (!isScanField(target) && inField) event.stopPropagation();
         return true;
       }
       return false;
@@ -91,6 +103,11 @@ export function useHidScanner(onScan, enabled = true, onDebug) {
       keyCount += 1;
       debug({ lastKey: event.key, lastCode: event.code || '' });
 
+      if (isManualField(event.target)) {
+        reset();
+        return;
+      }
+
       if (isScanTerminator(event)) {
         const code = normalizeScanPayload(buffer);
         if (looksLikeBarcode(code)) {
@@ -99,12 +116,14 @@ export function useHidScanner(onScan, enabled = true, onDebug) {
           emit(code);
           return;
         }
-        const fieldValue = normalizeScanPayload(event.target?.value);
-        if (looksLikeBarcode(fieldValue)) {
-          event.preventDefault();
-          event.stopPropagation();
-          emit(fieldValue);
-          return;
+        if (isScanField(event.target)) {
+          const fieldValue = normalizeScanPayload(event.target?.value);
+          if (looksLikeBarcode(fieldValue)) {
+            event.preventDefault();
+            event.stopPropagation();
+            emit(fieldValue);
+            return;
+          }
         }
         reset();
         return;
@@ -122,6 +141,7 @@ export function useHidScanner(onScan, enabled = true, onDebug) {
     }
 
     function onPaste(event) {
+      if (isManualField(event.target)) return;
       const text = normalizeScanPayload(event.clipboardData?.getData('text'));
       if (!looksLikeBarcode(text)) return;
       event.preventDefault();
@@ -129,8 +149,9 @@ export function useHidScanner(onScan, enabled = true, onDebug) {
     }
 
     function onBeforeInput(event) {
+      if (isManualField(event.target)) return;
       const data = normalizeScanPayload(event.data);
-      if (looksLikeBarcode(data)) {
+      if (isCompleteBarcode(data)) {
         event.preventDefault();
         emit(data);
       }
@@ -138,7 +159,7 @@ export function useHidScanner(onScan, enabled = true, onDebug) {
 
     function onInput(event) {
       const target = event.target;
-      if (target?.dataset?.posScan !== 'true' && target?.dataset?.barcodeScan !== 'true') return;
+      if (!isScanField(target)) return;
       const value = normalizeScanPayload(target.value);
       if (!isCompleteBarcode(value)) return;
       clearAuto();
