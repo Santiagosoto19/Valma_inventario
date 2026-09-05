@@ -15,3 +15,13 @@ export function formatApiError(error) {
 
   return msg || 'Ocurrió un error inesperado.';
 }
+
+export function isNetworkError(error) {
+  return error?.code === 'NETWORK' || error?.code === 'TIMEOUT';
+}
+
+export function shouldQueueSale(error) {
+  if (isNetworkError(error)) return true;
+  const msg = String(error?.message || '');
+  return /504|503|502/.test(msg);
+}

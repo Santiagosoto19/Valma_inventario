@@ -37,6 +37,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_products_barcode_unique
 CREATE INDEX IF NOT EXISTS idx_products_barcode_lookup ON products (barcode);
 CREATE INDEX IF NOT EXISTS idx_products_service_group ON products(service_group);
 
+CREATE SEQUENCE IF NOT EXISTS barcode_seq START 1;
+
 INSERT INTO products (name, description, stock, price, service_key, service_group, track_stock)
 VALUES
   ('Helado $2.500', 'Helado', 0, 2500, 'helado_2500', 'helados', false),
@@ -64,8 +66,13 @@ CREATE TABLE IF NOT EXISTS sales (
     total           DECIMAL(12, 2) NOT NULL CHECK (total >= 0),
     payment_method  payment_method NOT NULL,
     sale_date       DATE NOT NULL DEFAULT CURRENT_DATE,
+    client_sale_id  VARCHAR(64),
     created_at      TIMESTAMPTZ DEFAULT NOW()
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_sales_client_sale_id
+  ON sales (client_sale_id)
+  WHERE client_sale_id IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_sales_sale_date ON sales(sale_date);
 CREATE INDEX IF NOT EXISTS idx_sales_payment_method ON sales(payment_method);

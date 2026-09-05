@@ -1,6 +1,7 @@
 export function requestTimeout(ms = 9_000) {
   return (req, res, next) => {
     if (res.headersSent) return next();
+    const wait = req.path?.includes('barcodes.pdf') ? Math.max(ms, 60_000) : ms;
 
     const timer = setTimeout(() => {
       if (!res.headersSent) {
@@ -8,7 +9,7 @@ export function requestTimeout(ms = 9_000) {
           error: 'Tiempo de espera agotado. Intenta de nuevo en unos segundos.',
         });
       }
-    }, ms);
+    }, wait);
 
     res.on('finish', () => clearTimeout(timer));
     res.on('close', () => clearTimeout(timer));

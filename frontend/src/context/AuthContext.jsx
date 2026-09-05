@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { api, getToken, getStoredUser, setAuth, clearAuth } from '../services/api';
+import { isNetworkError } from '../utils/errors';
 
 const AuthContext = createContext(null);
 
@@ -17,9 +18,13 @@ export function AuthProvider({ children }) {
       try {
         const { user: verified } = await api.auth.me();
         setUser(verified);
-      } catch {
-        clearAuth();
-        setUser(null);
+      } catch (error) {
+        if (isNetworkError(error) && getStoredUser()) {
+          setUser(getStoredUser());
+        } else {
+          clearAuth();
+          setUser(null);
+        }
       } finally {
         setLoading(false);
       }

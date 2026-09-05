@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Pencil, Trash2, Package, SearchX } from 'lucide-react';
+import { Plus, Pencil, Trash2, Package, SearchX, Sparkles, Printer, FileDown } from 'lucide-react';
 import { api, formatCurrency, formatApiError } from '../services/api';
 import ProductImage from '../components/ui/ProductImage';
 import ProductForm from '../components/ProductForm';
@@ -8,6 +8,7 @@ import Card from '../components/ui/Card';
 import InventoryNav from '../components/inventory/InventoryNav';
 import InventoryFilters, { filterProducts } from '../components/inventory/InventoryFilters';
 import { useNotifications } from '../context/NotificationContext';
+import BarcodeImage, { printProductBarcode } from '../components/ui/BarcodeImage';
 
 export default function InventoryPage() {
   const [products, setProducts] = useState([]);
@@ -19,6 +20,8 @@ export default function InventoryPage() {
   const [stockFilter, setStockFilter] = useState('all');
   const [sortBy, setSortBy] = useState('name_asc');
   const [threshold, setThreshold] = useState(5);
+  const [generating, setGenerating] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
   const { addNotification } = useNotifications();
 
   useEffect(() => { loadProducts(); }, []);
@@ -43,6 +46,51 @@ export default function InventoryPage() {
     () => filterProducts(products, { search, stockFilter, sortBy, threshold }),
     [products, search, stockFilter, sortBy, threshold]
   );
+
+  const missingBarcodes = products.filter((p) => !p.barcode).length;
+
+  async function handleDownloadPdf() {
+    try {
+      setDownloadingPdf(true);
+      await api.products.downloadBarcodesPdf();
+      await loadProducts();
+      addNotification({
+        type: 'success',
+        title: 'PDF listo',
+        message: 'Se generaron los códigos faltantes y se descargó el PDF con todas las etiquetas.',
+      });
+    } catch (err) {
+      addNotification({
+        type: 'error',
+        title: 'No se pudo crear el PDF',
+        message: formatApiError(err),
+      });
+    } finally {
+      setDownloadingPdf(false);
+    }
+  }
+
+  async function handleGenerateMissing() {
+    if (!missingBarcodes) return;
+    try {
+      setGenerating(true);
+      const result = await api.products.generateMissingBarcodes();
+      await loadProducts();
+      addNotification({
+        type: 'success',
+        title: 'Códigos generados',
+        message: `Se asignaron ${result.count} códigos internos. Imprime las etiquetas y pégalas en los productos.`,
+      });
+    } catch (err) {
+      addNotification({
+        type: 'error',
+        title: 'No se pudieron generar los códigos',
+        message: formatApiError(err),
+      });
+    } finally {
+      setGenerating(false);
+    }
+  }
 
   async function handleDelete(id) {
     if (!confirm('¿Eliminar este producto?')) return;
@@ -73,9 +121,29 @@ export default function InventoryPage() {
           <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-800">Inventario</h2>
           <p className="text-slate-500 mt-1 font-medium">Gestión completa de productos</p>
         </div>
-        <Button icon={Plus} onClick={() => { setEditing(null); setShowForm(true); }}>
-          Agregar producto
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="ghost"
+            icon={FileDown}
+            disabled={downloadingPdf}
+            onClick={handleDownloadPdf}
+          >
+            {downloadingPdf ? 'Creando PDF...' : 'PDF de todos los códigos'}
+          </Button>
+          {missingBarcodes > 0 && (
+            <Button
+              variant="ghost"
+              icon={Sparkles}
+              disabled={generating}
+              onClick={handleGenerateMissing}
+            >
+              {generating ? 'Generando...' : `Generar ${missingBarcodes} códigos`}
+            </Button>
+          )}
+          <Button icon={Plus} onClick={() => { setEditing(null); setShowForm(true); }}>
+            Agregar producto
+          </Button>
+        </div>
       </div>
 
       <InventoryNav />
@@ -101,7 +169,20 @@ export default function InventoryPage() {
         <ProductForm
           product={editing}
           onClose={() => { setShowForm(false); setEditing(null); }}
-          onSuccess={() => { setShowForm(false); setEditing(null); loadProducts(); }}
+          onSuccess={(saved) => {
+            const justGenerated = !editing?.barcode;
+            setShowForm(false);
+            setEditing(null);
+            loadProducts();
+            if (saved?.barcode && justGenerated) {
+              addNotification({
+                type: 'success',
+                title: 'Código listo',
+                message: `${saved.barcode} — imprime la etiqueta, pégala y escanéala en caja.`,
+              });
+              printProductBarcode(saved);
+            }
+          }}
         />
       )}
 
@@ -152,6 +233,18 @@ export default function InventoryPage() {
                     {formatCurrency(product.price)}
                   </span>
                 </div>
+                {product.barcode && (
+                  <div className="mt-3 p-2 rounded-2xl bg-pastel-cream/80">
+                    <BarcodeImage value={product.barcode} height={40} />
+                    <button
+                      type="button"
+                      onClick={() => printProductBarcode(product)}
+                      className="w-full mt-1 text-xs font-bold text-slate-600 hover:text-pink-600 inline-flex items-center justify-center gap-1"
+                    >
+                      <Printer size={12} /> Imprimir etiqueta
+                    </button>
+                  </div>
+                )}
                 <div className="flex gap-2 mt-4">
                   <Button
                     variant="ghost"

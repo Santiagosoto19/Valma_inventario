@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Plus, Minus, Banknote, Smartphone, CreditCard, Loader2 } from 'lucide-react';
 import { api, formatCurrency, formatApiError } from '../services/api';
+import { isNetworkError } from '../utils/errors';
 import { useNotifications } from '../context/NotificationContext';
+import { useOffline } from '../context/OfflineContext';
 import InvoiceModal from './sales/InvoiceModal';
 import Button from './ui/Button';
 import Card from './ui/Card';
@@ -20,6 +22,7 @@ export default function QuickServiceSale({
   const [processing, setProcessing] = useState(false);
   const [completedSale, setCompletedSale] = useState(null);
   const { addNotification } = useNotifications();
+  const { cacheProducts, readCachedProducts, submitSale } = useOffline();
 
   useEffect(() => {
     async function load() {
@@ -28,14 +31,32 @@ export default function QuickServiceSale({
         const data = await api.products.services(serviceGroup);
         setProducts(data);
         setQuantities(Object.fromEntries(data.map((p) => [p.id, 0])));
+        await cacheProducts(serviceGroup, data);
       } catch (err) {
-        console.error(err);
+        const cached = await readCachedProducts(serviceGroup);
+        if (cached?.length) {
+          setProducts(cached);
+          setQuantities(Object.fromEntries(cached.map((p) => [p.id, 0])));
+          addNotification({
+            type: 'warning',
+            title: 'Sin conexión',
+            message: 'Usando el catálogo guardado en este dispositivo.',
+          });
+        } else if (isNetworkError(err)) {
+          addNotification({
+            type: 'error',
+            title: 'Sin catálogo offline',
+            message: 'Abre esta pantalla una vez con internet para vender sin red.',
+          });
+        } else {
+          console.error(err);
+        }
       } finally {
         setLoading(false);
       }
     }
     load();
-  }, [serviceGroup]);
+  }, [addNotification, cacheProducts, readCachedProducts, serviceGroup]);
 
   const accentStyles = {
     pink: {
@@ -87,21 +108,32 @@ export default function QuickServiceSale({
     }
     try {
       setProcessing(true);
-      const sale = await api.sales.create({
-        payment_method: paymentMethod,
-        global_discount: 0,
-        items: cartItems.map((i) => ({
-          product_id: i.product.id,
-          quantity: i.quantity,
-          discount: 0,
-        })),
+      const lines = cartItems.map((i) => ({
+        product: i.product,
+        quantity: i.quantity,
+        discount: 0,
+      }));
+      const { sale, queued } = await submitSale({
+        catalogKey: serviceGroup,
+        body: {
+          payment_method: paymentMethod,
+          global_discount: 0,
+          items: lines.map((i) => ({
+            product_id: i.product.id,
+            quantity: i.quantity,
+            discount: 0,
+          })),
+        },
+        lines,
       });
       setCompletedSale(sale);
       setQuantities(Object.fromEntries(products.map((p) => [p.id, 0])));
       addNotification({
-        type: 'success',
-        title: 'Venta registrada',
-        message: `${sale.invoice_number} — ${formatCurrency(sale.total)}`,
+        type: queued ? 'warning' : 'success',
+        title: queued ? 'Venta guardada en este dispositivo' : 'Venta registrada',
+        message: queued
+          ? `Se enviará cuando haya internet — ${formatCurrency(sale.total)}`
+          : `${sale.invoice_number} — ${formatCurrency(sale.total)}`,
       });
     } catch (err) {
       addNotification({
@@ -228,7 +260,11 @@ export default function QuickServiceSale({
       </Card>
 
       {completedSale && (
-        <InvoiceModal sale={completedSale} onClose={() => setCompletedSale(null)} />
+        <InvoiceModal
+          sale={completedSale}
+          onClose={() => setCompletedSale(null)}
+          onSaleUpdated={setCompletedSale}
+        />
       )}
     </div>
   );

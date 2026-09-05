@@ -235,7 +235,20 @@ export default function AccountingPage() {
       </section>
 
       {selectedSaleId && (
-        <SaleDetailModal saleId={selectedSaleId} onClose={() => setSelectedSaleId(null)} />
+        <SaleDetailModal
+          saleId={selectedSaleId}
+          onClose={() => setSelectedSaleId(null)}
+          onSaleUpdated={(updated) => {
+            setDailySales((prev) => prev.map((row) => (
+              row.id === updated.id ? { ...row, payment_method: updated.payment_method } : row
+            )));
+            setMonthlySales((prev) => prev.map((row) => (
+              row.id === updated.id ? { ...row, payment_method: updated.payment_method } : row
+            )));
+            api.accounting.dashboard().then(setData).catch(() => undefined);
+            api.accounting.monthly(selectedYear, selectedMonth).then(setMonthlyDetail).catch(() => undefined);
+          }}
+        />
       )}
     </div>
   );

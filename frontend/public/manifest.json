@@ -1,0 +1,16 @@
+{
+  "name": "Valma Inventario",
+  "short_name": "Valma",
+  "start_url": "/caja",
+  "display": "standalone",
+  "background_color": "#FFF7F5",
+  "theme_color": "#F472B6",
+  "lang": "es",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

@@ -46,12 +46,16 @@ async function request(path, options = {}, timeoutMs = 15_000) {
     res = await fetch(path, { ...options, headers, signal: controller.signal });
   } catch (error) {
     if (error.name === 'AbortError') {
-      throw new Error('La operación tardó demasiado. Inténtalo de nuevo.');
+      const timeoutError = new Error('La operación tardó demasiado. Inténtalo de nuevo.');
+      timeoutError.code = 'TIMEOUT';
+      throw timeoutError;
     }
     const hint = import.meta.env.DEV
       ? ' En local ejecuta: npm run start.'
       : '';
-    throw new Error(`No se pudo conectar al servidor.${hint}`);
+    const networkError = new Error(`No se pudo conectar al servidor.${hint}`);
+    networkError.code = 'NETWORK';
+    throw networkError;
   } finally {
     clearTimeout(timer);
   }
@@ -73,7 +77,11 @@ async function request(path, options = {}, timeoutMs = 15_000) {
   }
 
   if (!res.ok) {
-    throw new Error(data.error || `Error ${res.status}`);
+    const error = new Error(data.error || `Error ${res.status}`);
+    if ([502, 503, 504].includes(res.status)) {
+      error.code = 'TIMEOUT';
+    }
+    throw error;
   }
 
   return data;
@@ -101,6 +109,27 @@ export const api = {
     update: (id, formData) =>
       request(`/api/products/${id}`, { method: 'PUT', body: formData, headers: {} }, 30_000),
     delete: (id) => request(`/api/products/${id}`, { method: 'DELETE' }),
+    generateBarcode: (id) =>
+      request(`/api/products/${id}/barcode`, { method: 'POST' }),
+    generateMissingBarcodes: () =>
+      request('/api/products/missing-barcodes', { method: 'POST' }),
+    downloadBarcodesPdf: async () => {
+      const token = getToken();
+      const res = await fetch('/api/products/barcodes.pdf', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `Error ${res.status}`);
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'valma-codigos-barras.pdf';
+      link.click();
+      URL.revokeObjectURL(url);
+    },
     lowStock: () => request('/api/products/low-stock'),
   },
   sales: {
@@ -111,6 +140,11 @@ export const api = {
         25_000
       ),
     get: (id) => request(`/api/sales/${id}`),
+    updatePayment: (id, payment_method) =>
+      request(`/api/sales/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ payment_method }),
+      }),
     list: (params = {}) => {
       const qs = new URLSearchParams(params).toString();
       return request(`/api/sales${qs ? `?${qs}` : ''}`);
@@ -121,6 +155,9 @@ export const api = {
     daily: (date) => request(`/api/accounting/daily${date ? `?date=${date}` : ''}`),
     monthly: (year, month) =>
       request(`/api/accounting/monthly?year=${year}&month=${month}`),
+  },
+  scanner: {
+    status: () => request('/api/scanner/status', {}, 4_000),
   },
   settings: {
     get: () => request('/api/settings'),

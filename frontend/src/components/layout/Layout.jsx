@@ -1,6 +1,8 @@
 import Sidebar from './Sidebar';
 import MobileNav from './MobileNav';
 import MobileHeader from './MobileHeader';
+import OfflineBanner from '../OfflineBanner';
+import ScannerBanner from '../ScannerBanner';
 
 export default function Layout({ children }) {
   return (
@@ -10,6 +12,8 @@ export default function Layout({ children }) {
         <MobileHeader />
         <main className="flex-1 overflow-auto pb-20 md:pb-0">
           <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto animate-fade-in">
+            <OfflineBanner />
+            <ScannerBanner />
             {children}
           </div>
         </main>

@@ -25,12 +25,46 @@ function mapSaleItems(saleId, saleItems) {
   }));
 }
 
-export async function createSale({ items, payment_method, global_discount = 0 }) {
+let clientSaleIdSupported;
+
+async function supportsClientSaleId() {
+  if (clientSaleIdSupported != null) return clientSaleIdSupported;
+  const { rows } = await queryWithTimeout(
+    `SELECT 1 FROM information_schema.columns
+     WHERE table_schema = 'public' AND table_name = 'sales' AND column_name = 'client_sale_id'`
+  );
+  clientSaleIdSupported = rows.length > 0;
+  return clientSaleIdSupported;
+}
+
+export async function getSaleByClientSaleId(clientSaleId) {
+  const { rows: sales } = await queryWithTimeout(
+    'SELECT * FROM sales WHERE client_sale_id = $1',
+    [clientSaleId]
+  );
+  if (!sales.length) return null;
+  const { rows: items } = await queryWithTimeout(
+    'SELECT * FROM sale_items WHERE sale_id = $1',
+    [sales[0].id]
+  );
+  return normalizeSaleRecord({ ...sales[0], items });
+}
+
+export async function createSale({ items, payment_method, global_discount = 0, client_sale_id = null }) {
   if (!items?.length) {
     throw new Error('La venta debe incluir al menos un producto');
   }
   if (!['cash', 'nequi'].includes(payment_method)) {
     throw new Error('Método de pago inválido. Use cash o nequi');
+  }
+
+  const canUseClientId = await supportsClientSaleId();
+  const clientSaleId = canUseClientId && client_sale_id
+    ? String(client_sale_id).trim().slice(0, 64)
+    : null;
+  if (clientSaleId) {
+    const existing = await getSaleByClientSaleId(clientSaleId);
+    if (existing) return existing;
   }
 
   let client;
@@ -102,18 +136,22 @@ export async function createSale({ items, payment_method, global_discount = 0 })
       "SELECT 'FAC-' || nextval('invoice_seq') AS invoice_number"
     );
 
-    const { rows: saleRows } = await client.query(
-      `INSERT INTO sales (invoice_number, subtotal, discount_items, discount_global, total, payment_method, sale_date)
-       VALUES ($1, $2, $3, $4, $5, $6, ${sqlTodayLocalDate()}) RETURNING *`,
-      [
-        invoiceRows[0].invoice_number,
-        subtotal,
-        discountItems,
-        globalDiscount,
-        total,
-        payment_method,
-      ]
-    );
+    const insertSql = canUseClientId
+      ? `INSERT INTO sales (invoice_number, subtotal, discount_items, discount_global, total, payment_method, sale_date, client_sale_id)
+         VALUES ($1, $2, $3, $4, $5, $6, ${sqlTodayLocalDate()}, $7) RETURNING *`
+      : `INSERT INTO sales (invoice_number, subtotal, discount_items, discount_global, total, payment_method, sale_date)
+         VALUES ($1, $2, $3, $4, $5, $6, ${sqlTodayLocalDate()}) RETURNING *`;
+    const insertParams = [
+      invoiceRows[0].invoice_number,
+      subtotal,
+      discountItems,
+      globalDiscount,
+      total,
+      payment_method,
+    ];
+    if (canUseClientId) insertParams.push(clientSaleId);
+
+    const { rows: saleRows } = await client.query(insertSql, insertParams);
     const sale = saleRows[0];
 
     for (const item of saleItems) {
@@ -155,10 +193,30 @@ export async function createSale({ items, payment_method, global_discount = 0 })
         // transacción ya cerrada o sin BEGIN
       }
     }
+    if (error.code === '23505' && clientSaleId) {
+      const existing = await getSaleByClientSaleId(clientSaleId);
+      if (existing) return existing;
+    }
     throw error;
   } finally {
     client?.release();
   }
+}
+
+export async function updateSalePaymentMethod(id, payment_method) {
+  if (!['cash', 'nequi'].includes(payment_method)) {
+    throw new Error('Método de pago inválido. Use cash o nequi');
+  }
+  const existing = await getSaleById(id);
+  if (!existing) return null;
+  if (existing.payment_method === payment_method) return existing;
+
+  const { rowCount } = await queryWithTimeout(
+    'UPDATE sales SET payment_method = $1 WHERE id = $2',
+    [payment_method, id]
+  );
+  if (!rowCount) return null;
+  return getSaleById(id);
 }
 
 export async function getSaleById(id) {

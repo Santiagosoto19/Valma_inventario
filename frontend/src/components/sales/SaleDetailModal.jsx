@@ -3,7 +3,7 @@ import { api } from '../../services/api';
 import Modal from '../ui/Modal';
 import VirtualInvoice from './VirtualInvoice';
 
-export default function SaleDetailModal({ saleId, onClose }) {
+export default function SaleDetailModal({ saleId, onClose, onSaleUpdated }) {
   const [sale, setSale] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -30,7 +30,16 @@ export default function SaleDetailModal({ saleId, onClose }) {
         </div>
       )}
       {error && <p className="text-rose-600 text-center py-8 font-medium">{error}</p>}
-      {!loading && !error && sale && <VirtualInvoice sale={sale} onClose={onClose} />}
+      {!loading && !error && sale && (
+        <VirtualInvoice
+          sale={sale}
+          onClose={onClose}
+          onSaleUpdated={(next) => {
+            setSale(next);
+            onSaleUpdated?.(next);
+          }}
+        />
+      )}
     </Modal>
   );
 }

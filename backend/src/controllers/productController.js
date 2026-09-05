@@ -7,9 +7,12 @@ import {
   updateProduct,
   deleteProduct,
   getLowStockProducts,
+  allocateInternalBarcode,
+  assignBarcodeIfMissing,
+  generateMissingBarcodes,
 } from '../services/productService.js';
 import { uploadProductImage, deleteProductImage } from '../services/storageService.js';
-import { httpStatusFromError } from '../utils/httpErrors.js';
+import { streamBarcodesPdf } from '../utils/barcodePdf.js';
 
 async function resolveImageUrl(req) {
   if (req.file) {
@@ -104,7 +107,11 @@ export async function editProduct(req, res) {
     if (description !== undefined) updates.description = description.trim();
     if (stock !== undefined) updates.stock = parseInt(stock, 10);
     if (price !== undefined) updates.price = parseFloat(price);
-    if (barcode !== undefined) updates.barcode = barcode?.trim() || null;
+    if (barcode !== undefined) {
+      const trimmed = barcode?.trim();
+      if (trimmed) updates.barcode = trimmed;
+      else if (!existing.barcode) updates.barcode = await allocateInternalBarcode();
+    }
 
     if (req.file) {
       updates.image_url = await uploadProductImage(req.file);
@@ -146,6 +153,40 @@ export async function listLowStock(req, res) {
     const result = await getLowStockProducts();
     res.json(result);
   } catch (error) {
+    res.status(httpStatusFromError(error)).json({ error: error.message });
+  }
+}
+
+export async function generateProductBarcode(req, res) {
+  try {
+    const product = await assignBarcodeIfMissing(req.params.id);
+    if (!product) return res.status(404).json({ error: 'Producto no encontrado' });
+    res.json(product);
+  } catch (error) {
+    res.status(httpStatusFromError(error)).json({ error: error.message });
+  }
+}
+
+export async function generateAllMissingBarcodes(req, res) {
+  try {
+    const products = await generateMissingBarcodes();
+    res.json({ count: products.length, products });
+  } catch (error) {
+    res.status(httpStatusFromError(error)).json({ error: error.message });
+  }
+}
+
+export async function downloadBarcodesPdf(req, res) {
+  try {
+    if (req.query.fillMissing !== '0') {
+      await generateMissingBarcodes();
+    }
+    const products = await getAllProducts();
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="valma-codigos-barras.pdf"');
+    await streamBarcodesPdf(products, res);
+  } catch (error) {
+    if (res.headersSent) return;
     res.status(httpStatusFromError(error)).json({ error: error.message });
   }
 }

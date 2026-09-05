@@ -49,6 +49,7 @@ export function NotificationProvider({ children }) {
     }
 
     async function checkLowStock() {
+      if (!navigator.onLine) return;
       try {
         const products = await api.products.lowStock();
         products.forEach((product) => {

@@ -28,6 +28,12 @@ async function migrate() {
       console.log('Aplicando migración v5 (códigos de barras)...');
       await client.query(readSql('migration_v5_barcode.sql'));
       console.log('✓ Migración v5 aplicada (barcode en productos)');
+      console.log('Aplicando migración v6 (cola offline)...');
+      await client.query(readSql('migration_v6_client_sale_id.sql'));
+      console.log('✓ Migración v6 aplicada (client_sale_id en ventas)');
+      console.log('Aplicando migración v7 (secuencia códigos de barras)...');
+      await client.query(readSql('migration_v7_barcode_seq.sql'));
+      console.log('✓ Migración v7 aplicada (barcode_seq)');
     }
 
     console.log('Base de datos lista.');

@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
-import { Upload, Link2, ScanLine } from 'lucide-react';
+import { useState } from 'react';
+import { Upload, Link2, ScanLine, Sparkles, Printer } from 'lucide-react';
 import { api } from '../services/api';
+import { isScanTerminator, scanKeyToChar } from '../utils/barcode';
 import Modal from './ui/Modal';
 import Button from './ui/Button';
 import ImagePreview, { useImagePreview } from './ui/ImagePreview';
+import BarcodeImage, { printProductBarcode } from './ui/BarcodeImage';
 
 function isExternalUrl(url) {
   return url?.startsWith('http') || url?.includes('cloudinary.com');
@@ -18,6 +20,7 @@ export default function ProductForm({ product, onClose, onSuccess }) {
     barcode: product?.barcode || '',
     image_url: product?.image_url || '',
   });
+  const [autoGenerate, setAutoGenerate] = useState(!product?.barcode);
   const [imageFile, setImageFile] = useState(null);
   const [useUrl, setUseUrl] = useState(
     !!product?.image_url && isExternalUrl(product.image_url)
@@ -34,6 +37,7 @@ export default function ProductForm({ product, onClose, onSuccess }) {
   function handleChange(e) {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+    if (name === 'barcode' && value.trim()) setAutoGenerate(false);
   }
 
   async function handleSubmit(e) {
@@ -46,14 +50,18 @@ export default function ProductForm({ product, onClose, onSuccess }) {
       formData.append('description', form.description);
       formData.append('stock', form.stock);
       formData.append('price', form.price);
-      if (product) formData.append('barcode', form.barcode.trim());
-      else if (form.barcode.trim()) formData.append('barcode', form.barcode.trim());
+      if (!autoGenerate && form.barcode.trim()) {
+        formData.append('barcode', form.barcode.trim());
+      } else if (product && autoGenerate && !product.barcode) {
+        formData.append('barcode', '');
+      }
       if (imageFile) formData.append('image', imageFile);
       else if (useUrl && form.image_url) formData.append('image_url', form.image_url);
 
-      if (product) await api.products.update(product.id, formData);
-      else await api.products.create(formData);
-      onSuccess();
+      const saved = product
+        ? await api.products.update(product.id, formData)
+        : await api.products.create(formData);
+      onSuccess(saved);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -89,15 +97,64 @@ export default function ProductForm({ product, onClose, onSuccess }) {
             <ScanLine size={14} />
             Código de barras
           </label>
-          <input
-            className="input-pastel font-mono"
-            name="barcode"
-            value={form.barcode}
-            onChange={handleChange}
-            placeholder="Escanea o escribe el código"
-            autoComplete="off"
-          />
-          <p className="text-xs text-slate-400 mt-1">Opcional. Escanea con lector o celular al crear el producto.</p>
+          <label className="flex items-center gap-2 mt-1 mb-2 text-sm font-medium text-slate-600">
+            <input
+              type="checkbox"
+              checked={autoGenerate}
+              onChange={(e) => {
+                setAutoGenerate(e.target.checked);
+                if (e.target.checked) setForm((prev) => ({ ...prev, barcode: product?.barcode || '' }));
+              }}
+            />
+            Generar automáticamente
+          </label>
+          {autoGenerate && !form.barcode ? (
+            <p className="text-xs text-slate-500 font-medium px-1">
+              Al guardar se crea un código interno (EAN-13) listo para imprimir y escanear.
+            </p>
+          ) : (
+            <>
+              <input
+                className="input-pastel font-mono"
+                name="barcode"
+                value={form.barcode}
+                onChange={handleChange}
+                onKeyDown={(e) => {
+                  if (isScanTerminator(e)) {
+                    e.preventDefault();
+                    return;
+                  }
+                  const digit = scanKeyToChar(e);
+                  if (digit && /^(?:Digit|Numpad)[0-9]$/.test(e.code || '')) {
+                    e.preventDefault();
+                    setForm((prev) => ({ ...prev, barcode: `${prev.barcode}${digit}` }));
+                    setAutoGenerate(false);
+                  }
+                }}
+                placeholder="Clic aquí y escanea el del fabricante"
+                autoComplete="off"
+                data-barcode-scan="true"
+              />
+              <p className="text-xs text-slate-400 mt-1">
+                Si el producto ya trae código, escanealo aquí. Si no, deja generar automático.
+              </p>
+            </>
+          )}
+          {form.barcode && (
+            <div className="mt-3 p-3 rounded-2xl bg-white border border-pastel-lavender/30">
+              <BarcodeImage value={form.barcode} />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                icon={Printer}
+                className="w-full mt-2"
+                onClick={() => printProductBarcode({ ...form, barcode: form.barcode })}
+              >
+                Imprimir etiqueta
+              </Button>
+            </div>
+          )}
         </div>
         <div>
           <label className="label-pastel">Imagen</label>
@@ -120,8 +177,8 @@ export default function ProductForm({ product, onClose, onSuccess }) {
         {error && <div className="p-3 rounded-2xl bg-rose-50 text-rose-700 text-sm font-medium">{error}</div>}
         <div className="flex gap-3 pt-2">
           <Button type="button" variant="ghost" className="flex-1" onClick={onClose}>Cancelar</Button>
-          <Button type="submit" className="flex-1" disabled={loading}>
-            {loading ? 'Guardando...' : product ? 'Actualizar' : 'Crear'}
+          <Button type="submit" className="flex-1" icon={autoGenerate && !form.barcode ? Sparkles : undefined} disabled={loading}>
+            {loading ? 'Guardando...' : product ? 'Actualizar' : autoGenerate ? 'Crear y generar código' : 'Crear'}
           </Button>
         </div>
       </form>

@@ -1,6 +1,12 @@
 import { queryWithTimeout } from '../config/database.js';
 import { getStockThreshold } from './settingsService.js';
 import { emitStockAlert } from '../config/socket.js';
+import { internalEan13FromSeq } from '../utils/barcode.js';
+
+export async function allocateInternalBarcode() {
+  const { rows } = await queryWithTimeout("SELECT nextval('barcode_seq') AS seq");
+  return internalEan13FromSeq(rows[0].seq);
+}
 
 export async function getAllProducts() {
   const { rows } = await queryWithTimeout(
@@ -36,7 +42,7 @@ export async function getProductByBarcode(barcode) {
 
 export async function createProduct(data) {
   const { name, description, image_url, stock, price, barcode } = data;
-  const normalizedBarcode = barcode?.trim() || null;
+  const normalizedBarcode = barcode?.trim() || await allocateInternalBarcode();
   const { rows } = await queryWithTimeout(
     `INSERT INTO products (name, description, image_url, stock, price, barcode)
      VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
@@ -114,6 +120,49 @@ async function checkAndEmitStockAlert(product) {
   if (product.stock <= threshold) {
     emitStockAlert({ ...product, threshold });
   }
+}
+
+export async function assignBarcodeIfMissing(id) {
+  const product = await getProductById(id);
+  if (!product) return null;
+  if (product.barcode) return product;
+  return updateProduct(id, { barcode: await allocateInternalBarcode() });
+}
+
+export async function generateMissingBarcodes() {
+  const { rows } = await queryWithTimeout(
+    `SELECT id FROM products
+     WHERE service_group IS NULL AND (barcode IS NULL OR barcode = '')
+     ORDER BY name ASC`,
+    [],
+    30_000
+  );
+  if (!rows.length) return [];
+
+  const { rows: seqRows } = await queryWithTimeout(
+    `SELECT nextval('barcode_seq') AS seq FROM generate_series(1, $1)`,
+    [rows.length],
+    30_000
+  );
+
+  const tuples = [];
+  const params = [];
+  let param = 1;
+  for (let i = 0; i < rows.length; i += 1) {
+    tuples.push(`($${param++}::uuid, $${param++})`);
+    params.push(rows[i].id, internalEan13FromSeq(seqRows[i].seq));
+  }
+
+  const { rows: updated } = await queryWithTimeout(
+    `UPDATE products AS p
+     SET barcode = v.code, updated_at = NOW()
+     FROM (VALUES ${tuples.join(', ')}) AS v(id, code)
+     WHERE p.id = v.id
+     RETURNING p.*`,
+    params,
+    30_000
+  );
+  return updated;
 }
 
 export async function checkStockAlertsForProducts(products) {

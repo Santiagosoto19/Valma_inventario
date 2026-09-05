@@ -13,6 +13,7 @@ import saleRoutes from './routes/saleRoutes.js';
 import accountingRoutes from './routes/accountingRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
 import debugRoutes from './routes/debugRoutes.js';
+import scannerRoutes from './routes/scannerRoutes.js';
 
 dotenv.config();
 
@@ -57,6 +58,7 @@ export function createApp() {
   // debug routes (no auth) - useful to check DB connectivity in deployments
   app.use('/api/debug', debugRoutes);
   app.use('/api', authenticate);
+  app.use('/api/scanner', scannerRoutes);
   app.use('/api/products', productRoutes);
   app.use('/api/sales', saleRoutes);
   app.use('/api/accounting', accountingRoutes);
