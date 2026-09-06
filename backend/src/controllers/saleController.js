@@ -7,12 +7,14 @@ export async function completeSale(req, res) {
     const sale = await createSale({ items, payment_method, global_discount, client_sale_id });
     res.status(201).json(sale);
   } catch (error) {
-    const status = error.message.includes('Stock insuficiente') ||
-      error.message.includes('no encontrado') ||
-      error.message.includes('inválid') ||
-      error.message.includes('al menos un producto')
-      ? 400
-      : httpStatusFromError(error);
+    const status = error.message.includes('Caja bloqueada')
+      ? 403
+      : error.message.includes('Stock insuficiente') ||
+        error.message.includes('no encontrado') ||
+        error.message.includes('inválid') ||
+        error.message.includes('al menos un producto')
+        ? 400
+        : httpStatusFromError(error);
     res.status(status).json({ error: userFacingError(error) });
   }
 }
@@ -33,7 +35,11 @@ export async function updateSalePayment(req, res) {
     if (!sale) return res.status(404).json({ error: 'Venta no encontrada' });
     res.json(sale);
   } catch (error) {
-    const status = error.message.includes('inválid') ? 400 : httpStatusFromError(error);
+    const status = error.message.includes('Caja bloqueada')
+      ? 403
+      : error.message.includes('inválid')
+        ? 400
+        : httpStatusFromError(error);
     res.status(status).json({ error: userFacingError(error) });
   }
 }

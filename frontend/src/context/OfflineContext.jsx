@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useAuth } from './AuthContext';
+import { useCashRegister } from './CashRegisterContext';
 import { useNotifications } from './NotificationContext';
 import { formatApiError } from '../utils/errors';
 import { formatCurrency } from '../services/api';
@@ -16,6 +17,7 @@ const OfflineContext = createContext(null);
 
 export function OfflineProvider({ children }) {
   const { isAuthenticated, loading } = useAuth();
+  const { locked } = useCashRegister();
   const { addNotification } = useNotifications();
   const [online, setOnline] = useState(
     typeof navigator === 'undefined' ? true : navigator.onLine
@@ -96,10 +98,13 @@ export function OfflineProvider({ children }) {
   }, []);
 
   const submitSale = useCallback(async ({ catalogKey, body, lines }) => {
+    if (locked) {
+      throw new Error('Caja bloqueada. Desbloquéala en Cierre de caja para vender.');
+    }
     const result = await submitSaleOffline({ catalogKey, body, lines });
     await refreshQueue();
     return result;
-  }, [refreshQueue]);
+  }, [locked, refreshQueue]);
 
   const dismissFailed = useCallback(async (id) => {
     await dismissQueueItem(id);

@@ -159,6 +159,25 @@ export const api = {
   scanner: {
     status: () => request('/api/scanner/status', {}, 4_000),
   },
+  cashClose: {
+    today: () => request('/api/cash-close/today'),
+    history: (limit = 45) => request(`/api/cash-close?limit=${limit}`),
+    open: (opening_float) =>
+      request('/api/cash-close/open', {
+        method: 'POST',
+        body: JSON.stringify({ opening_float }),
+      }),
+    close: ({ cash_counted, nequi_counted, notes, opening_float }) =>
+      request('/api/cash-close/close', {
+        method: 'POST',
+        body: JSON.stringify({ cash_counted, nequi_counted, notes, opening_float }),
+      }),
+    setLock: (locked) =>
+      request('/api/cash-close/lock', {
+        method: 'PATCH',
+        body: JSON.stringify({ locked }),
+      }),
+  },
   settings: {
     get: () => request('/api/settings'),
     update: (stock_threshold) =>

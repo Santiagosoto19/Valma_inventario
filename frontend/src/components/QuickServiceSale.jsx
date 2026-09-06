@@ -4,6 +4,7 @@ import { api, formatCurrency, formatApiError } from '../services/api';
 import { isNetworkError } from '../utils/errors';
 import { useNotifications } from '../context/NotificationContext';
 import { useOffline } from '../context/OfflineContext';
+import { useCashRegister } from '../context/CashRegisterContext';
 import InvoiceModal from './sales/InvoiceModal';
 import Button from './ui/Button';
 import Card from './ui/Card';
@@ -23,6 +24,7 @@ export default function QuickServiceSale({
   const [completedSale, setCompletedSale] = useState(null);
   const { addNotification } = useNotifications();
   const { cacheProducts, readCachedProducts, submitSale } = useOffline();
+  const { locked: salesLocked } = useCashRegister();
 
   useEffect(() => {
     async function load() {
@@ -98,6 +100,14 @@ export default function QuickServiceSale({
   }
 
   async function completeSale() {
+    if (salesLocked) {
+      addNotification({
+        type: 'warning',
+        title: 'Caja bloqueada',
+        message: 'Desbloquéala en Cierre de caja para vender.',
+      });
+      return;
+    }
     if (!cartItems.length) {
       addNotification({
         type: 'warning',
@@ -253,9 +263,9 @@ export default function QuickServiceSale({
           icon={processing ? Loader2 : CreditCard}
           className={`w-full ${processing ? '[&_svg]:animate-spin' : ''}`}
           onClick={completeSale}
-          disabled={processing || totalUnits === 0}
+          disabled={processing || totalUnits === 0 || salesLocked}
         >
-          {processing ? 'Procesando venta...' : 'Registrar venta'}
+          {processing ? 'Procesando venta...' : salesLocked ? 'Caja bloqueada' : 'Registrar venta'}
         </Button>
       </Card>
 

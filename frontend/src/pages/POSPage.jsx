@@ -9,6 +9,7 @@ import { isCompleteBarcode, normalizeScanPayload } from '../utils/barcode';
 import ProductImage from '../components/ui/ProductImage';
 import { useNotifications } from '../context/NotificationContext';
 import { useOffline } from '../context/OfflineContext';
+import { useCashRegister } from '../context/CashRegisterContext';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import { useHidScanner } from '../hooks/useHidScanner';
 import { useScanner } from '../context/ScannerContext';
@@ -179,6 +180,7 @@ function CartPanel({
   onCompleteSale,
   amountReceived,
   onAmountReceivedChange,
+  salesLocked,
 }) {
   const received = parseMoney(amountReceived);
   const change = Math.round((received - cartTotal) * 100) / 100;
@@ -346,8 +348,8 @@ function CartPanel({
           </div>
         )}
 
-        <Button variant="success" size="xl" icon={processing ? Loader2 : CreditCard} className={`w-full ${processing ? '[&_svg]:animate-spin' : ''}`} onClick={onCompleteSale} disabled={processing || !cart.length}>
-          {processing ? 'Procesando venta...' : 'Terminar Venta'}
+        <Button variant="success" size="xl" icon={processing ? Loader2 : CreditCard} className={`w-full ${processing ? '[&_svg]:animate-spin' : ''}`} onClick={onCompleteSale} disabled={processing || !cart.length || salesLocked}>
+          {processing ? 'Procesando venta...' : salesLocked ? 'Caja bloqueada' : 'Terminar Venta'}
         </Button>
       </div>
     </div>
@@ -386,6 +388,7 @@ export default function POSPage() {
   });
   const { addNotification } = useNotifications();
   const { cacheProducts, readCachedProducts, submitSale } = useOffline();
+  const { locked: salesLocked } = useCashRegister();
   const { connected: scannerConnected, deviceName: scannerName } = useScanner();
   const isMobile = useIsMobile();
 
@@ -731,6 +734,14 @@ export default function POSPage() {
   }
 
   async function completeSale() {
+    if (salesLocked) {
+      addNotification({
+        type: 'warning',
+        title: 'Caja bloqueada',
+        message: 'Desbloquéala en Cierre de caja para vender.',
+      });
+      return;
+    }
     if (!cart.length) {
       addNotification({
         type: 'warning',
@@ -876,6 +887,7 @@ export default function POSPage() {
             onCompleteSale={completeSale}
             amountReceived={amountReceived}
             onAmountReceivedChange={setAmountReceived}
+            salesLocked={salesLocked}
           />
         </Card>
       </div>
@@ -900,6 +912,7 @@ export default function POSPage() {
             onCompleteSale={completeSale}
             amountReceived={amountReceived}
             onAmountReceivedChange={setAmountReceived}
+            salesLocked={salesLocked}
           />
         </Card>
       </div>

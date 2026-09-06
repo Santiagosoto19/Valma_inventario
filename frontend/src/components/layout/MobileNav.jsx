@@ -14,7 +14,7 @@ export default function MobileNav() {
             <Link
               key={item.to}
               to={item.to}
-              className={`flex flex-col items-center gap-0.5 px-3 py-2 rounded-2xl min-w-[4.5rem] transition-all ${
+              className={`flex flex-col items-center gap-0.5 px-1.5 py-2 rounded-2xl min-w-0 flex-1 transition-all ${
                 active
                   ? 'text-pink-600 bg-pink-50'
                   : 'text-slate-500 hover:text-slate-700'

@@ -34,6 +34,12 @@ async function migrate() {
       console.log('Aplicando migración v7 (secuencia códigos de barras)...');
       await client.query(readSql('migration_v7_barcode_seq.sql'));
       console.log('✓ Migración v7 aplicada (barcode_seq)');
+      console.log('Aplicando migración v8 (cierre de caja)...');
+      await client.query(readSql('migration_v8_cash_close.sql'));
+      console.log('✓ Migración v8 aplicada (cash_closes)');
+      console.log('Aplicando migración v9 (cierre efectivo + Nequi)...');
+      await client.query(readSql('migration_v9_cash_close_nequi.sql'));
+      console.log('✓ Migración v9 aplicada (nequi en cash_closes)');
     }
 
     console.log('Base de datos lista.');

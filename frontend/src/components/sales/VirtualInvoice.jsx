@@ -3,6 +3,7 @@ import { Receipt, Banknote, Smartphone, Hash, Calendar, Tag, Loader2 } from 'luc
 import { api, formatCurrency, formatDate } from '../../services/api';
 import { updateQueuedSalePayment } from '../../services/offlineSales';
 import { useNotifications } from '../../context/NotificationContext';
+import { useCashRegister } from '../../context/CashRegisterContext';
 import Button from '../ui/Button';
 
 const PAYMENT = {
@@ -12,6 +13,7 @@ const PAYMENT = {
 
 export default function VirtualInvoice({ sale, onClose, onSaleUpdated }) {
   const { addNotification } = useNotifications();
+  const { locked: salesLocked } = useCashRegister();
   const [current, setCurrent] = useState(sale);
   const [saving, setSaving] = useState(false);
 
@@ -28,6 +30,14 @@ export default function VirtualInvoice({ sale, onClose, onSaleUpdated }) {
   const hasDiscounts = discountItems > 0 || discountGlobal > 0;
 
   async function changePayment(method) {
+    if (salesLocked) {
+      addNotification({
+        type: 'warning',
+        title: 'Caja bloqueada',
+        message: 'Desbloquéala en Cierre para cambiar el método de pago.',
+      });
+      return;
+    }
     if (!method || method === current.payment_method || saving) return;
     setSaving(true);
     try {
@@ -97,7 +107,7 @@ export default function VirtualInvoice({ sale, onClose, onSaleUpdated }) {
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
-              disabled={saving}
+              disabled={saving || salesLocked}
               onClick={() => changePayment('cash')}
               className={`flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm min-h-11 transition-all ${
                 current.payment_method === 'cash'
@@ -109,7 +119,7 @@ export default function VirtualInvoice({ sale, onClose, onSaleUpdated }) {
             </button>
             <button
               type="button"
-              disabled={saving}
+              disabled={saving || salesLocked}
               onClick={() => changePayment('nequi')}
               className={`flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm min-h-11 transition-all ${
                 current.payment_method === 'nequi'
@@ -121,7 +131,9 @@ export default function VirtualInvoice({ sale, onClose, onSaleUpdated }) {
             </button>
           </div>
           <p className="text-[11px] font-medium mt-2 opacity-80">
-            Si te equivocaste, cámbialo aquí. Contabilidad se actualiza al instante.
+            {salesLocked
+              ? 'Caja bloqueada. Desbloquéala en Cierre para cambiar el pago.'
+              : 'Si te equivocaste, cámbialo aquí. Contabilidad se actualiza al instante.'}
           </p>
         </div>
       </div>

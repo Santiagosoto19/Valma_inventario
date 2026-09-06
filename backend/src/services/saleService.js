@@ -1,5 +1,6 @@
 import { queryWithTimeout, connectWithTimeout } from '../config/database.js';
 import { checkStockAlertsForProducts } from './productService.js';
+import { assertRegisterUnlocked } from './registerLock.js';
 import {
   monthDateRange,
   normalizeSaleRecord,
@@ -51,9 +52,6 @@ export async function getSaleByClientSaleId(clientSaleId) {
 }
 
 export async function createSale({ items, payment_method, global_discount = 0, client_sale_id = null }) {
-  if (!items?.length) {
-    throw new Error('La venta debe incluir al menos un producto');
-  }
   if (!['cash', 'nequi'].includes(payment_method)) {
     throw new Error('Método de pago inválido. Use cash o nequi');
   }
@@ -65,6 +63,12 @@ export async function createSale({ items, payment_method, global_discount = 0, c
   if (clientSaleId) {
     const existing = await getSaleByClientSaleId(clientSaleId);
     if (existing) return existing;
+  }
+
+  await assertRegisterUnlocked();
+
+  if (!items?.length) {
+    throw new Error('La venta debe incluir al menos un producto');
   }
 
   let client;
@@ -207,6 +211,7 @@ export async function updateSalePaymentMethod(id, payment_method) {
   if (!['cash', 'nequi'].includes(payment_method)) {
     throw new Error('Método de pago inválido. Use cash o nequi');
   }
+  await assertRegisterUnlocked();
   const existing = await getSaleById(id);
   if (!existing) return null;
   if (existing.payment_method === payment_method) return existing;

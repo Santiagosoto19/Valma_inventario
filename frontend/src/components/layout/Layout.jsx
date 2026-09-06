@@ -3,6 +3,7 @@ import MobileNav from './MobileNav';
 import MobileHeader from './MobileHeader';
 import OfflineBanner from '../OfflineBanner';
 import ScannerBanner from '../ScannerBanner';
+import CashCloseBanner from '../CashCloseBanner';
 
 export default function Layout({ children }) {
   return (
@@ -14,6 +15,7 @@ export default function Layout({ children }) {
           <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto animate-fade-in">
             <OfflineBanner />
             <ScannerBanner />
+            <CashCloseBanner />
             {children}
           </div>
         </main>

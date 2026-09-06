@@ -14,6 +14,7 @@ import accountingRoutes from './routes/accountingRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
 import debugRoutes from './routes/debugRoutes.js';
 import scannerRoutes from './routes/scannerRoutes.js';
+import cashCloseRoutes from './routes/cashCloseRoutes.js';
 
 dotenv.config();
 
@@ -62,6 +63,7 @@ export function createApp() {
   app.use('/api/products', productRoutes);
   app.use('/api/sales', saleRoutes);
   app.use('/api/accounting', accountingRoutes);
+  app.use('/api/cash-close', cashCloseRoutes);
   app.use('/api/settings', settingsRoutes);
 
   app.use((err, _req, res, _next) => {
