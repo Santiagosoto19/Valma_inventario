@@ -24,6 +24,17 @@ function isManualField(el) {
   return !isScanField(el);
 }
 
+function stripLeakedScanChars(el, leaked) {
+  if (!el || !leaked) return;
+  const value = String(el.value ?? '');
+  if (!value.endsWith(leaked)) return;
+  const next = value.slice(0, -leaked.length);
+  const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el), 'value')?.set;
+  if (setter) setter.call(el, next);
+  else el.value = next;
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
 export function useHidScanner(onScan, enabled = true, onDebug) {
   const onScanRef = useRef(onScan);
   onScanRef.current = onScan;
@@ -37,6 +48,7 @@ export function useHidScanner(onScan, enabled = true, onDebug) {
     let lastAt = 0;
     let keyCount = 0;
     let autoTimer = null;
+    let capturingManual = false;
 
     function debug(extra = {}) {
       onDebugRef.current?.({
@@ -56,6 +68,7 @@ export function useHidScanner(onScan, enabled = true, onDebug) {
     function reset() {
       buffer = '';
       lastAt = 0;
+      capturingManual = false;
       clearAuto();
       debug({ lastKey: '', lastCode: '' });
     }
@@ -103,10 +116,7 @@ export function useHidScanner(onScan, enabled = true, onDebug) {
       keyCount += 1;
       debug({ lastKey: event.key, lastCode: event.code || '' });
 
-      if (isManualField(event.target)) {
-        reset();
-        return;
-      }
+      const manual = isManualField(event.target);
 
       if (isScanTerminator(event)) {
         const code = normalizeScanPayload(buffer);
@@ -135,6 +145,42 @@ export function useHidScanner(onScan, enabled = true, onDebug) {
         return;
       }
 
+      if (manual) {
+        const now = performance.now();
+        const gap = lastAt ? now - lastAt : Infinity;
+        if (gap > RESET_MS) {
+          buffer = '';
+          capturingManual = false;
+        }
+        const fast = lastAt && gap < FAST_GAP_MS;
+        const next = buffer + char;
+        const forming = next.length >= 3 || looksLikeBarcode(next) || isCompleteBarcode(next);
+        const shouldCapture = capturingManual || (fast && buffer.length > 0 && forming);
+
+        if (shouldCapture) {
+          if (!capturingManual) {
+            stripLeakedScanChars(event.target, buffer);
+            capturingManual = true;
+          }
+          event.preventDefault();
+          event.stopPropagation();
+          appendChar(char, event);
+          return;
+        }
+
+        if (!fast) {
+          clearAuto();
+          buffer = char;
+          lastAt = now;
+          capturingManual = false;
+          debug({ lastKey: event.key, lastCode: event.code || '' });
+          return;
+        }
+
+        appendChar(char, event);
+        return;
+      }
+
       stealFromField(event);
       appendChar(char, event);
       stealFromField(event);
@@ -149,7 +195,10 @@ export function useHidScanner(onScan, enabled = true, onDebug) {
     }
 
     function onBeforeInput(event) {
-      if (isManualField(event.target)) return;
+      if (isManualField(event.target)) {
+        if (capturingManual) event.preventDefault();
+        return;
+      }
       const data = normalizeScanPayload(event.data);
       if (isCompleteBarcode(data)) {
         event.preventDefault();

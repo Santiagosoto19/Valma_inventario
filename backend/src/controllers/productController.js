@@ -5,6 +5,8 @@ import {
   getServiceProducts,
   createProduct,
   updateProduct,
+  adjustProductStock,
+  adjustProductPrice,
   deleteProduct,
   getLowStockProducts,
   allocateInternalBarcode,
@@ -13,6 +15,7 @@ import {
 } from '../services/productService.js';
 import { uploadProductImage, deleteProductImage } from '../services/storageService.js';
 import { streamBarcodesPdf } from '../utils/barcodePdf.js';
+import { httpStatusFromError, userFacingError } from '../utils/httpErrors.js';
 
 async function resolveImageUrl(req) {
   if (req.file) {
@@ -129,6 +132,34 @@ export async function editProduct(req, res) {
       return res.status(400).json({ error: 'Ese código de barras ya está registrado en otro producto' });
     }
     res.status(httpStatusFromError(error)).json({ error: error.message });
+  }
+}
+
+export async function adjustStock(req, res) {
+  try {
+    const product = await adjustProductStock(req.params.id, req.body || {});
+    if (!product) return res.status(404).json({ error: 'Producto no encontrado' });
+    res.json(product);
+  } catch (error) {
+    if (error.code === '22P02') {
+      return res.status(400).json({ error: 'Producto no encontrado' });
+    }
+    const status = error.status || httpStatusFromError(error);
+    res.status(status).json({ error: userFacingError(error) });
+  }
+}
+
+export async function adjustPrice(req, res) {
+  try {
+    const product = await adjustProductPrice(req.params.id, req.body || {});
+    if (!product) return res.status(404).json({ error: 'Producto no encontrado' });
+    res.json(product);
+  } catch (error) {
+    if (error.code === '22P02') {
+      return res.status(400).json({ error: 'Producto no encontrado' });
+    }
+    const status = error.status || httpStatusFromError(error);
+    res.status(status).json({ error: userFacingError(error) });
   }
 }
 

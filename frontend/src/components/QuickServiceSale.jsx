@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Plus, Minus, Banknote, Smartphone, CreditCard, Loader2 } from 'lucide-react';
 import { api, formatCurrency, formatApiError } from '../services/api';
 import { isNetworkError } from '../utils/errors';
@@ -8,6 +8,52 @@ import { useCashRegister } from '../context/CashRegisterContext';
 import InvoiceModal from './sales/InvoiceModal';
 import Button from './ui/Button';
 import Card from './ui/Card';
+
+function priceDraftFrom(price) {
+  const n = Number(price);
+  if (!Number.isFinite(n)) return '';
+  return String(n);
+}
+
+function PriceInput({ product, saving, onSetPrice, className }) {
+  const [draft, setDraft] = useState(priceDraftFrom(product.price));
+
+  useEffect(() => {
+    if (!saving) setDraft(priceDraftFrom(product.price));
+  }, [saving, product.price]);
+
+  function commit() {
+    const n = parseFloat(draft);
+    if (String(draft).trim() === '' || !Number.isFinite(n) || n < 0) {
+      setDraft(priceDraftFrom(product.price));
+      return;
+    }
+    if (n === Number(product.price)) return;
+    onSetPrice(n);
+  }
+
+  return (
+    <input
+      type="number"
+      min="0"
+      step="0.01"
+      inputMode="decimal"
+      data-no-scan="true"
+      disabled={saving}
+      aria-label={`Precio de ${product.name}`}
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          e.currentTarget.blur();
+        }
+      }}
+      className={className}
+    />
+  );
+}
 
 export default function QuickServiceSale({
   title,
@@ -22,6 +68,8 @@ export default function QuickServiceSale({
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [completedSale, setCompletedSale] = useState(null);
+  const [savingIds, setSavingIds] = useState(() => new Set());
+  const savingIdsRef = useRef(new Set());
   const { addNotification } = useNotifications();
   const { cacheProducts, readCachedProducts, submitSale } = useOffline();
   const { locked: salesLocked } = useCashRegister();
@@ -99,7 +147,43 @@ export default function QuickServiceSale({
     }));
   }
 
+  function setCardSaving(id, saving) {
+    if (saving) savingIdsRef.current.add(id);
+    else savingIdsRef.current.delete(id);
+    setSavingIds((prev) => {
+      const next = new Set(prev);
+      if (saving) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  async function handleSetPrice(product, price) {
+    if (savingIdsRef.current.has(product.id)) return;
+    const n = Number(price);
+    if (!Number.isFinite(n) || n < 0) return;
+    if (n === Number(product.price)) return;
+    setCardSaving(product.id, true);
+    try {
+      const updated = await api.products.adjustPrice(product.id, n);
+      setProducts((list) => {
+        const next = list.map((p) => (p.id === updated.id ? { ...p, ...updated } : p));
+        cacheProducts(serviceGroup, next);
+        return next;
+      });
+    } catch (err) {
+      addNotification({
+        type: 'error',
+        title: 'No se pudo ajustar el precio',
+        message: formatApiError(err),
+      });
+    } finally {
+      setCardSaving(product.id, false);
+    }
+  }
+
   async function completeSale() {
+    if (savingIds.size > 0 || savingIdsRef.current.size > 0) return;
     if (salesLocked) {
       addNotification({
         type: 'warning',
@@ -181,6 +265,7 @@ export default function QuickServiceSale({
       <div className="grid sm:grid-cols-2 gap-4">
         {products.map((product) => {
           const qty = quantities[product.id] || 0;
+          const saving = savingIds.has(product.id);
           return (
             <Card
               key={product.id}
@@ -189,9 +274,15 @@ export default function QuickServiceSale({
               }`}
             >
               <p className="font-extrabold text-lg text-slate-800">{product.name}</p>
-              <p className={`text-2xl font-extrabold mt-1 ${accentStyles.price}`}>
-                {formatCurrency(product.price)}
-              </p>
+              <div className={`mt-1 flex items-baseline gap-1 ${accentStyles.price}`}>
+                <span className="text-2xl font-extrabold">$</span>
+                <PriceInput
+                  product={product}
+                  saving={saving}
+                  onSetPrice={(price) => handleSetPrice(product, price)}
+                  className={`text-2xl font-extrabold w-full min-w-0 bg-white/70 border border-white/80 rounded-xl px-2 py-0.5 ${accentStyles.price} disabled:opacity-50`}
+                />
+              </div>
               <div className="flex items-center justify-between mt-4">
                 <button
                   type="button"
@@ -205,6 +296,7 @@ export default function QuickServiceSale({
                   min="0"
                   value={qty || ''}
                   placeholder="0"
+                  data-no-scan="true"
                   onChange={(e) => setQty(product.id, e.target.value)}
                   className="input-pastel w-20 text-center font-bold text-lg py-2"
                 />
@@ -263,7 +355,7 @@ export default function QuickServiceSale({
           icon={processing ? Loader2 : CreditCard}
           className={`w-full ${processing ? '[&_svg]:animate-spin' : ''}`}
           onClick={completeSale}
-          disabled={processing || totalUnits === 0 || salesLocked}
+          disabled={processing || totalUnits === 0 || salesLocked || savingIds.size > 0}
         >
           {processing ? 'Procesando venta...' : salesLocked ? 'Caja bloqueada' : 'Registrar venta'}
         </Button>

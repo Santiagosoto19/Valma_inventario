@@ -5,7 +5,7 @@ export default function CopiasPage() {
   return (
     <QuickServiceSale
       title="Copias"
-      subtitle="Color $500 — Blanco y negro $300"
+      subtitle="Venta rápida — toca el precio para cambiarlo"
       serviceGroup="copias"
       accent="sky"
       icon={Copy}

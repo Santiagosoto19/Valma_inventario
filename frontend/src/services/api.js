@@ -108,6 +108,10 @@ export const api = {
       request('/api/products', { method: 'POST', body: formData, headers: {} }, 30_000),
     update: (id, formData) =>
       request(`/api/products/${id}`, { method: 'PUT', body: formData, headers: {} }, 30_000),
+    adjustStock: (id, body) =>
+      request(`/api/products/${id}/stock`, { method: 'PATCH', body: JSON.stringify(body) }),
+    adjustPrice: (id, price) =>
+      request(`/api/products/${id}/price`, { method: 'PATCH', body: JSON.stringify({ price }) }),
     delete: (id) => request(`/api/products/${id}`, { method: 'DELETE' }),
     generateBarcode: (id) =>
       request(`/api/products/${id}/barcode`, { method: 'POST' }),

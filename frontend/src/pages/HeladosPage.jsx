@@ -5,7 +5,7 @@ export default function HeladosPage() {
   return (
     <QuickServiceSale
       title="Helados"
-      subtitle="Venta rápida — $2.500 y $5.000"
+      subtitle="Venta rápida — toca el precio para cambiarlo"
       serviceGroup="helados"
       accent="pink"
       icon={IceCreamCone}

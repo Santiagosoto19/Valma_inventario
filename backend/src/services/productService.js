@@ -53,6 +53,137 @@ export async function createProduct(data) {
   return product;
 }
 
+const MAX_STOCK_ADJUST = 1_000_000;
+
+function parseIntegerField(value) {
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value) || !Number.isInteger(value)) return null;
+    return value;
+  }
+  if (typeof value === 'string' && /^-?\d+$/.test(value.trim())) {
+    return Number(value.trim());
+  }
+  return null;
+}
+
+function stockHttpError(status, message) {
+  const error = new Error(message);
+  error.status = status;
+  return error;
+}
+
+export async function adjustProductStock(id, body = {}) {
+  const hasDelta = body.delta !== undefined && body.delta !== null && body.delta !== '';
+  const hasStock = body.stock !== undefined && body.stock !== null && body.stock !== '';
+
+  if (!hasDelta && !hasStock) {
+    throw stockHttpError(400, 'Indica un delta o un stock');
+  }
+
+  let delta;
+  let stock;
+  if (hasDelta) {
+    delta = parseIntegerField(body.delta);
+    if (delta === null) {
+      throw stockHttpError(400, 'El delta debe ser un número entero');
+    }
+    if (Math.abs(delta) > MAX_STOCK_ADJUST) {
+      throw stockHttpError(400, 'El delta no puede superar 1000000');
+    }
+  } else {
+    stock = parseIntegerField(body.stock);
+    if (stock === null || stock < 0) {
+      throw stockHttpError(400, 'El stock debe ser un entero mayor o igual a 0');
+    }
+    if (stock > MAX_STOCK_ADJUST) {
+      throw stockHttpError(400, 'El stock no puede superar 1000000');
+    }
+  }
+
+  const existing = await getProductById(id);
+  if (!existing) return null;
+
+  if (existing.service_group) {
+    throw stockHttpError(400, 'No se puede ajustar el stock de un servicio');
+  }
+  if (existing.track_stock === false) {
+    throw stockHttpError(400, 'Este producto no controla inventario');
+  }
+
+  const { rows } = hasDelta
+    ? await queryWithTimeout(
+        `UPDATE products
+         SET stock = GREATEST(0, stock + $1), updated_at = NOW()
+         WHERE id = $2 AND service_group IS NULL
+         RETURNING *`,
+        [delta, id]
+      )
+    : await queryWithTimeout(
+        `UPDATE products
+         SET stock = $1, updated_at = NOW()
+         WHERE id = $2 AND service_group IS NULL
+         RETURNING *`,
+        [stock, id]
+      );
+
+  const product = rows[0] ?? null;
+  if (product) await checkAndEmitStockAlert(product);
+  return product;
+}
+
+const MAX_PRICE_ADJUST = 10_000_000;
+
+function parsePriceField(value) {
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) return null;
+    return value;
+  }
+  if (typeof value === 'string' && value.trim() !== '') {
+    const n = Number(value.trim());
+    if (!Number.isFinite(n)) return null;
+    return n;
+  }
+  return null;
+}
+
+function priceHttpError(status, message) {
+  const error = new Error(message);
+  error.status = status;
+  return error;
+}
+
+export async function adjustProductPrice(id, body = {}) {
+  const hasPrice = body.price !== undefined && body.price !== null && body.price !== '';
+  if (!hasPrice) {
+    throw priceHttpError(400, 'Indica un precio');
+  }
+
+  const parsed = parsePriceField(body.price);
+  if (parsed === null) {
+    throw priceHttpError(400, 'El precio debe ser un número');
+  }
+  if (parsed < 0) {
+    throw priceHttpError(400, 'El precio debe ser mayor o igual a 0');
+  }
+  if (parsed > MAX_PRICE_ADJUST) {
+    throw priceHttpError(400, 'El precio no puede superar 10000000');
+  }
+
+  const price = Math.round(parsed * 100) / 100;
+
+  const existing = await getProductById(id);
+  if (!existing) return null;
+
+  const { rows } = await queryWithTimeout(
+    `UPDATE products
+     SET price = $1, updated_at = NOW()
+     WHERE id = $2
+     RETURNING *`,
+    [price, id]
+  );
+  return rows[0] ?? null;
+}
+
 export async function updateProduct(id, data) {
   const { name, description, image_url, stock, price, barcode } = data;
   const sets = [];

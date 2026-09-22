@@ -6,6 +6,8 @@ import {
   getByBarcode,
   addProduct,
   editProduct,
+  adjustStock,
+  adjustPrice,
   removeProduct,
   listLowStock,
   generateProductBarcode,
@@ -23,6 +25,8 @@ router.get('/low-stock', listLowStock);
 router.get('/barcodes.pdf', downloadBarcodesPdf);
 router.post('/missing-barcodes', generateAllMissingBarcodes);
 router.post('/:id/barcode', generateProductBarcode);
+router.patch('/:id/stock', adjustStock);
+router.patch('/:id/price', adjustPrice);
 router.get('/:id', getProduct);
 router.post('/', upload.single('image'), addProduct);
 router.put('/:id', upload.single('image'), editProduct);
